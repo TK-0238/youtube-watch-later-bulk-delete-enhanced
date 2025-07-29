@@ -4,7 +4,6 @@ class PopupController {
     this.currentTab = null;
     this.isWatchLaterPage = false;
     this.status = null;
-    this.statistics = null;
     
     this.init();
   }
@@ -72,14 +71,6 @@ class PopupController {
   
   async loadData() {
     try {
-      console.log('📊 Loading statistics...');
-      // Get statistics from background script with timeout
-      this.statistics = await this.sendMessageWithTimeout(
-        { type: 'GET_STATISTICS' }, 
-        3000
-      );
-      console.log('✅ Statistics loaded:', this.statistics);
-      
       if (this.isWatchLaterPage) {
         console.log('📺 Loading YouTube page status...');
         // Get status from content script with timeout
@@ -91,12 +82,6 @@ class PopupController {
       }
     } catch (error) {
       console.error('❌ Error loading data:', error);
-      // Create default data to prevent UI issues
-      this.statistics = {
-        totalDeleted: 0,
-        daysSinceInstall: 0,
-        lastUsed: null
-      };
       
       if (this.isWatchLaterPage) {
         this.status = {
@@ -198,29 +183,19 @@ class PopupController {
     } else {
       this.updateGeneralPageUI();
     }
-    
-    this.updateStatistics();
   }
   
   updateWatchLaterPageUI() {
-    const { isEnabled, selectedCount, totalVideos, isDeleting } = this.status;
+    const { isEnabled, selectedCount, isDeleting } = this.status;
     
     // Show toggle button
     document.getElementById('toggle-mode').style.display = 'block';
     
-    // Update status
-    const statusIndicator = document.getElementById('status-indicator');
-    const statusText = document.getElementById('status-text');
+    // Update toggle button text
     const toggleText = document.getElementById('toggle-text');
     
     if (isEnabled) {
-      statusIndicator.className = 'status-indicator enabled';
-      statusText.textContent = chrome.i18n.getMessage('enabled');
       toggleText.textContent = chrome.i18n.getMessage('disable');
-      
-      // Show selected count
-      document.getElementById('selected-status').style.display = 'block';
-      document.getElementById('selected-count').textContent = selectedCount || 0;
       
       // Show delete buttons
       document.getElementById('delete-buttons').style.display = 'block';
@@ -235,18 +210,12 @@ class PopupController {
       deleteSelectedBtn.disabled = !selectedCount || selectedCount === 0;
       
     } else {
-      statusIndicator.className = 'status-indicator disabled';
-      statusText.textContent = chrome.i18n.getMessage('disabled');
       toggleText.textContent = chrome.i18n.getMessage('enable');
       
-      // Hide selected count, delete buttons, and debug section
-      document.getElementById('selected-status').style.display = 'none';
+      // Hide delete buttons and debug section
       document.getElementById('delete-buttons').style.display = 'none';
       document.getElementById('debug-section').style.display = 'none';
     }
-    
-    // Update video count
-    document.getElementById('video-count').textContent = totalVideos || 0;
     
     // Show progress if deleting
     if (isDeleting) {
@@ -261,34 +230,12 @@ class PopupController {
     // Show "Open Watch Later" button
     document.getElementById('open-watch-later').style.display = 'block';
     
-    // Update status to show we're not on the right page
-    const statusIndicator = document.getElementById('status-indicator');
-    const statusText = document.getElementById('status-text');
-    
-    statusIndicator.className = 'status-indicator disabled';
-    statusText.textContent = '待機中';
-    
     // Hide other controls
-    document.getElementById('selected-status').style.display = 'none';
     document.getElementById('toggle-mode').style.display = 'none';
     document.getElementById('delete-buttons').style.display = 'none';
     document.getElementById('debug-section').style.display = 'none';
-    document.getElementById('video-count').textContent = '-';
   }
   
-  updateStatistics() {
-    if (this.statistics) {
-      const { totalDeleted, daysSinceInstall, lastUsed } = this.statistics;
-      
-      document.getElementById('total-deleted').textContent = totalDeleted || 0;
-      document.getElementById('days-used').textContent = daysSinceInstall || 0;
-      
-      const lastUsedText = lastUsed ? 
-        new Date(lastUsed).toLocaleDateString('ja-JP') : 
-        '未使用';
-      document.getElementById('last-used').textContent = lastUsedText;
-    }
-  }
   
   showSection(sectionId) {
     // Hide all sections

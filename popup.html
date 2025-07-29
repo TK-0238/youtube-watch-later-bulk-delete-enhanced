@@ -22,24 +22,6 @@
 
     <!-- Main Content -->
     <div id="main-content" class="main-content" style="display: none;">
-      <!-- Status Card -->
-      <div class="status-card">
-        <div class="status-item">
-          <span class="status-label" data-i18n="status">ステータス</span>
-          <span id="status-value" class="status-value">
-            <span id="status-indicator" class="status-indicator"></span>
-            <span id="status-text" data-i18n="disabled">無効</span>
-          </span>
-        </div>
-        <div class="status-item">
-          <span class="status-label" data-i18n="videoCount">動画数</span>
-          <span id="video-count" class="status-value">0</span>
-        </div>
-        <div class="status-item" id="selected-status" style="display: none;">
-          <span class="status-label" data-i18n="selectedCount">選択中</span>
-          <span id="selected-count" class="status-value">0</span>
-        </div>
-      </div>
 
       <!-- Progress Section (hidden by default) -->
       <div id="progress-card" class="progress-card" style="display: none;">
@@ -95,33 +77,6 @@
         </div>
       </div>
 
-      <!-- Statistics Section -->
-      <div class="stats-section">
-        <h3 class="stats-title" data-i18n="statistics">統計</h3>
-        <div class="stats-grid">
-          <div class="stat-item">
-            <div class="stat-icon">📊</div>
-            <div class="stat-info">
-              <div class="stat-label" data-i18n="totalDeleted">総削除数</div>
-              <div id="total-deleted" class="stat-value">0</div>
-            </div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-icon">📅</div>
-            <div class="stat-info">
-              <div class="stat-label" data-i18n="daysUsed">使用日数</div>
-              <div id="days-used" class="stat-value">0</div>
-            </div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-icon">🕒</div>
-            <div class="stat-info">
-              <div class="stat-label" data-i18n="lastUsed">最終使用</div>
-              <div id="last-used" class="stat-value">未使用</div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Error State -->
