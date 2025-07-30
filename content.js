@@ -198,54 +198,35 @@ class WatchLaterBulkDelete {
         console.log(`🔍 Target element:`, target);
         
         try {
-          if (selector === 'body') {
-            // For body, append as child
-            target.appendChild(this.ui);
-          } else {
-            // For other elements, insert after
-            target.parentNode.insertBefore(this.ui, target.nextSibling);
-          }
+          target.appendChild(this.ui);
+          console.log('✅ UI successfully inserted into target');
           
           // Verify insertion
           const insertedUI = document.getElementById('bulk-delete-ui');
           if (insertedUI) {
-            console.log('✅ UI successfully inserted into DOM');
-            console.log(`🔍 UI parent:`, insertedUI.parentNode);
-            
-            // Verify buttons exist
-            const toggleBtn = document.getElementById('toggle-bulk-delete');
-            const selectAllBtn = document.getElementById('select-all');
-            
-            console.log(`🔍 Toggle button in DOM: ${!!toggleBtn}`);
-            console.log(`🔍 Select all button in DOM: ${!!selectAllBtn}`);
-            
-            if (toggleBtn && selectAllBtn) {
-              console.log('✅ All required buttons found in DOM');
-            } else {
-              console.error('❌ Some buttons missing from DOM');
-            }
-            
+            console.log('✅ UI insertion verified - element exists in DOM');
+            console.log('🔍 Final UI position:', insertedUI.getBoundingClientRect());
+            return;
           } else {
-            console.error('❌ UI insertion failed - element not found in DOM');
+            console.error('❌ UI insertion failed - element not found in DOM after insertion');
           }
-          
-          return;
-          
         } catch (error) {
-          console.error(`❌ Error inserting UI with selector ${selector}:`, error);
+          console.error(`❌ Failed to insert UI into ${selector}:`, error);
           continue;
         }
-        
       } else {
         console.log(`❌ Target not found: ${selector}`);
       }
     }
     
-    console.error('❌ Could not find any suitable insertion point for UI');
-    console.log('🔍 Available body children:');
+    console.error('❌ Failed to insert UI into any target');
+    
+    // Debug: Show available elements
+    console.log('🔍 Available elements for debugging:');
     const body = document.body;
-    if (body) {
-      for (let i = 0; i < body.children.length; i++) {
+    if (body && body.children) {
+      console.log('📋 Body children:');
+      for (let i = 0; i < Math.min(body.children.length, 10); i++) {
         const child = body.children[i];
         console.log(`  ${i + 1}. ${child.tagName} ${child.id ? '#' + child.id : ''} ${child.className ? '.' + child.className.split(' ').join('.') : ''}`);
       }
@@ -340,6 +321,10 @@ class WatchLaterBulkDelete {
     document.addEventListener('input', this.filterEventListener, true);
     console.log('✅ Filter input event listener added to document');
     
+    // Setup drag functionality
+    this.setupDragFunctionality();
+    console.log('✅ Drag functionality setup completed');
+    
     // Listen for messages from background script
     if (!this.messageListenerAdded) {
       chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -352,62 +337,58 @@ class WatchLaterBulkDelete {
     // Add direct button listeners as backup
     setTimeout(() => {
       this.addDirectListeners();
-    }, 100);
-    
-    console.log('🎧 Event listeners setup completed (with delegation)');
+    }, 1000);
   }
   
   addDirectListeners() {
-    console.log('🔗 === ADDING DIRECT BUTTON LISTENERS AS BACKUP ===');
+    console.log('🔧 Adding direct button listeners as backup...');
     
-    const buttons = [
-      { id: 'toggle-bulk-delete', handler: () => this.toggleBulkDeleteMode() },
-      { id: 'select-all', handler: () => {
-        console.log('✅ === SELECT ALL DIRECT LISTENER TRIGGERED ===');
-        this.selectAllVideos();
-      }},
-      { id: 'deselect-all', handler: () => this.deselectAllVideos() },
-      { id: 'delete-selected', handler: () => this.deleteSelectedVideos() },
-      { id: 'delete-all', handler: () => this.deleteAllVideos() },
-      { id: 'cancel-delete', handler: () => this.cancelDeletion() }
-    ];
+    const buttons = {
+      'toggle-bulk-delete': () => this.toggleBulkDeleteMode(),
+      'select-all': () => this.selectAllVideos(),
+      'deselect-all': () => this.deselectAllVideos(),
+      'delete-selected': () => this.deleteSelectedVideos(),
+      'delete-all': () => this.deleteAllVideos(),
+      'cancel-delete': () => this.cancelDeletion()
+    };
     
-    buttons.forEach(({ id, handler }) => {
-      const btn = document.getElementById(id);
-      if (btn) {
+    Object.entries(buttons).forEach(([id, handler]) => {
+      const button = document.getElementById(id);
+      if (button) {
         // Remove existing listeners
-        btn.removeEventListener('click', handler);
+        button.onclick = null;
+
         // Add new listener
-        btn.addEventListener('click', (e) => {
-          console.log(`🎯 Direct listener for ${id} triggered`);
+        button.addEventListener('click', (e) => {
+          console.log(`🎯 Direct listener fired for ${id}`);
           e.preventDefault();
           e.stopPropagation();
           handler();
         });
         console.log(`✅ Direct listener added for ${id}`);
       } else {
-        console.warn(`⚠️ Button ${id} not found for direct listener`);
+        console.log(`⚠️ Button not found: ${id}`);
       }
     });
     
-    // Filter inputs
-    const titleFilterInput = document.getElementById('title-filter');
-    const rangeFilterInput = document.getElementById('range-filter');
+    // Add filter listeners
+    const titleFilter = document.getElementById('title-filter');
+    const rangeFilter = document.getElementById('range-filter');
     
-    if (titleFilterInput) {
-      titleFilterInput.addEventListener('input', (e) => {
-        console.log('🔍 Direct title filter input changed:', e.target.value);
+    if (titleFilter) {
+      titleFilter.addEventListener('input', () => {
+        console.log('🔍 Title filter input (direct)');
         this.applyFilters();
       });
-      console.log('✅ Direct listener added for title-filter');
+      console.log('✅ Direct title filter listener added');
     }
     
-    if (rangeFilterInput) {
-      rangeFilterInput.addEventListener('input', (e) => {
-        console.log('📊 Direct range filter input changed:', e.target.value);
+    if (rangeFilter) {
+      rangeFilter.addEventListener('input', () => {
+        console.log('📊 Range filter input (direct)');
         this.applyFilters();
       });
-      console.log('✅ Direct listener added for range-filter');
+      console.log('✅ Direct range filter listener added');
     }
   }
   
@@ -423,1272 +404,6 @@ class WatchLaterBulkDelete {
     }
   }
   
-  toggleBulkDeleteMode() {
-    console.log('');
-    console.log('🔄 ========================================');
-    console.log('🔄 === TOGGLE BULK DELETE MODE CALLED ===');
-    console.log('🔄 ========================================');
-    console.log('');
-    
-    const previousState = this.isEnabled;
-    this.isEnabled = !this.isEnabled;
-    
-    console.log(`🔄 Mode changed: ${previousState} → ${this.isEnabled}`);
-    
-    const toggleBtn = document.getElementById('toggle-bulk-delete');
-    const controls = document.getElementById('bulk-delete-controls');
-    
-    console.log(`🔍 Toggle button exists: ${!!toggleBtn}`);
-    console.log(`🔍 Controls exist: ${!!controls}`);
-    
-    if (this.isEnabled) {
-      console.log('✅ Enabling bulk delete mode...');
-      
-      if (toggleBtn) {
-        toggleBtn.textContent = '❌ 一括削除モードを無効化';
-        toggleBtn.dataset.enabled = 'true';
-        console.log('✅ Toggle button text updated');
-      }
-      
-      if (controls) {
-        controls.style.display = 'block';
-        console.log('✅ Controls made visible');
-      }
-      
-      console.log('🔧 Adding checkboxes to videos...');
-      this.addCheckboxesToVideos();
-      
-      this.showNotification('✅ 一括削除モードが有効になりました');
-      
-    } else {
-      console.log('❌ Disabling bulk delete mode...');
-      
-      if (toggleBtn) {
-        toggleBtn.textContent = '✅ 一括削除モードを有効化';
-        toggleBtn.dataset.enabled = 'false';
-        console.log('❌ Toggle button text updated');
-      }
-      
-      if (controls) {
-        controls.style.display = 'none';
-        console.log('❌ Controls hidden');
-      }
-      
-      console.log('🧹 Removing checkboxes from videos...');
-      this.removeCheckboxesFromVideos();
-      
-      this.selectedVideos.clear();
-      console.log('🧹 Selected videos cleared');
-      
-      this.showNotification('❌ 一括削除モードが無効になりました');
-    }
-    
-    this.updateSelectedCount();
-    this.saveState();
-    
-    console.log('🔄 Toggle bulk delete mode completed');
-    console.log(`🔍 Final state: isEnabled=${this.isEnabled}, selectedVideos.size=${this.selectedVideos.size}`);
-  }
-  
-  addCheckboxesToVideos() {
-    console.log('☑️ === ADDING CHECKBOXES TO VIDEOS ===');
-    const videos = this.getVideoElements();
-    console.log(`📺 Found ${videos.length} video elements`);
-    
-    if (videos.length === 0) {
-      console.warn('⚠️ No video elements found to add checkboxes to');
-      return;
-    }
-    
-    let addedCount = 0;
-    let skippedCount = 0;
-    
-    videos.forEach((video, index) => {
-      // Check if checkbox already exists
-      if (video.querySelector('.bulk-delete-checkbox')) {
-        skippedCount++;
-        console.log(`⏭️ Video ${index + 1} already has checkbox, skipping`);
-        return;
-      }
-      
-      // Get video ID
-      const videoId = this.getVideoId(video);
-      console.log(`📋 Adding checkbox to video ${index + 1}, ID: ${videoId}`);
-      
-      // Create checkbox element
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.className = 'bulk-delete-checkbox';
-      checkbox.dataset.videoId = videoId;
-      
-      // Prevent click event from bubbling to video link
-      checkbox.addEventListener('click', (e) => {
-        e.stopPropagation();
-        console.log(`👆 Checkbox clicked: ${videoId}`);
-      });
-      
-      // Handle checkbox change
-      checkbox.addEventListener('change', (e) => {
-        e.stopPropagation();
-        console.log(`☑️ Checkbox changed: ${e.target.checked} for video ${e.target.dataset.videoId}`);
-        this.handleCheckboxChange(e.target);
-      });
-      
-      // Find thumbnail container
-      const thumbnail = video.querySelector('ytd-thumbnail');
-      if (thumbnail) {
-        // Create container for checkbox
-        const checkboxContainer = document.createElement('div');
-        checkboxContainer.className = 'checkbox-container';
-        checkboxContainer.appendChild(checkbox);
-        
-        // Prevent container clicks from triggering video navigation
-        checkboxContainer.addEventListener('click', (e) => {
-          e.stopPropagation();
-          console.log(`📦 Container clicked for video: ${videoId}`);
-          if (e.target !== checkbox) {
-            e.preventDefault();
-            // Focus on checkbox for better accessibility
-            checkbox.click();
-          }
-        });
-        
-        // Add to thumbnail
-        thumbnail.appendChild(checkboxContainer);
-        addedCount++;
-        console.log(`✅ Successfully added checkbox to video ${index + 1}`);
-        
-      } else {
-        console.warn(`⚠️ No thumbnail found for video ${index + 1}, cannot add checkbox`);
-      }
-    });
-    
-    console.log(`📊 Checkbox addition summary: ${addedCount} added, ${skippedCount} skipped`);
-    
-    // Verify checkboxes were added
-    const totalCheckboxes = document.querySelectorAll('.bulk-delete-checkbox').length;
-    console.log(`🔍 Total checkboxes in DOM after addition: ${totalCheckboxes}`);
-    
-    if (addedCount > 0) {
-      this.showNotification(`✅ ${addedCount}個の動画にチェックボックスを追加しました`);
-    }
-  }
-  
-  removeCheckboxesFromVideos() {
-    const checkboxes = document.querySelectorAll('.bulk-delete-checkbox');
-    checkboxes.forEach(checkbox => {
-      checkbox.parentElement.remove();
-    });
-  }
-  
-  getVideoElements() {
-    const selectors = [
-      'ytd-playlist-video-renderer',
-      'ytd-playlist-panel-video-renderer'
-    ];
-    
-    for (const selector of selectors) {
-      const elements = document.querySelectorAll(selector);
-      if (elements.length > 0) {
-        console.log(`✅ Found ${elements.length} videos with selector: ${selector}`);
-        return Array.from(elements);
-      }
-    }
-    
-    console.log('❌ No video elements found');
-    return [];
-  }
-  
-  getVideoId(videoElement) {
-    const link = videoElement.querySelector('#video-title, h3 a[href*="/watch"], a[href*="/watch"]');
-    if (link && link.href) {
-      const match = link.href.match(/[?&]v=([^&]+)/);
-      if (match) {
-        return match[1];
-      }
-    }
-    
-    const dataId = videoElement.getAttribute('data-video-id') || 
-                  videoElement.getAttribute('data-ytid');
-    if (dataId) {
-      return dataId;
-    }
-    
-    return `video-${Date.now()}-${Math.random()}`;
-  }
-  
-  handleCheckboxChange(checkbox) {
-    const videoId = checkbox.dataset.videoId;
-    
-    if (checkbox.checked) {
-      this.selectedVideos.add(videoId);
-      console.log(`✅ Added video ${videoId} to selection`);
-      checkbox.parentElement.style.backgroundColor = 'rgba(204, 0, 0, 0.9)';
-    } else {
-      this.selectedVideos.delete(videoId);
-      console.log(`❌ Removed video ${videoId} from selection`);
-      checkbox.parentElement.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    }
-    
-    this.updateSelectedCount();
-    this.saveState();
-  }
-  
-  updateSelectedCount() {
-    const count = this.selectedVideos.size;
-    const countElement = document.getElementById('selected-count');
-    const deleteButton = document.getElementById('delete-selected');
-    
-    console.log(`📊 Updating selected count to: ${count}`);
-    
-    if (countElement) {
-      countElement.textContent = count;
-    }
-    
-    if (deleteButton) {
-      deleteButton.disabled = count === 0;
-      
-      if (count === 0) {
-        deleteButton.textContent = '動画を選択してください';
-      } else {
-        deleteButton.textContent = `選択した${count}個の動画を削除`;
-      }
-    }
-  }
-  
-  selectAllVideos() {
-    console.log('');
-    console.log('✅ ========================================');
-    console.log('✅ === SELECT ALL VIDEOS (SIMPLIFIED) ===');
-    console.log('✅ ========================================');
-    console.log('');
-    
-    try {
-      // Step 1: Ensure bulk delete mode is enabled
-      if (!this.isEnabled) {
-        console.log('🔄 Enabling bulk delete mode first...');
-        this.toggleBulkDeleteMode();
-        
-        // Wait and retry
-        setTimeout(() => {
-          console.log('🔄 Retrying select all after enabling mode...');
-          this.selectAllVideos();
-        }, 500);
-        return;
-      }
-      
-      // Step 2: Get video elements
-      const videos = this.getVideoElements();
-      console.log(`📺 Found ${videos.length} video elements`);
-      
-      if (videos.length === 0) {
-        this.showNotification('⚠️ 動画が見つかりません');
-        return;
-      }
-      
-      // Step 3: Ensure checkboxes exist
-      let checkboxes = document.querySelectorAll('.bulk-delete-checkbox');
-      console.log(`☑️ Found ${checkboxes.length} existing checkboxes`);
-      
-      if (checkboxes.length === 0) {
-        console.log('🔧 No checkboxes found, adding them...');
-        this.addCheckboxesToVideos();
-        
-        // Wait for checkboxes to be added
-        setTimeout(() => {
-          checkboxes = document.querySelectorAll('.bulk-delete-checkbox');
-          console.log(`☑️ After adding: Found ${checkboxes.length} checkboxes`);
-          this.performSelectAll(checkboxes);
-        }, 200);
-        return;
-      }
-      
-      // Step 4: Select all immediately
-      this.performSelectAll(checkboxes);
-      
-    } catch (error) {
-      console.error('❌ Error in selectAllVideos:', error);
-      this.showNotification('❌ 選択処理でエラーが発生しました');
-    }
-  }
-  
-  performSelectAll(checkboxes) {
-    console.log('');
-    console.log('⚡ === PERFORMING SELECT ALL (VISIBLE ONLY) ===');
-    console.log('');
-    
-    if (!checkboxes || checkboxes.length === 0) {
-      console.error('❌ No checkboxes provided to performSelectAll');
-      this.showNotification('❌ チェックボックスが見つかりません');
-      return;
-    }
-    
-    let selectedCount = 0;
-    let alreadySelected = 0;
-    let hiddenCount = 0;
-    let processedCount = 0;
-    
-    // DO NOT clear current selection - preserve existing selections
-    // this.selectedVideos.clear(); // ← REMOVED to preserve existing selections
-    
-    // Process each checkbox (only visible ones)
-    Array.from(checkboxes).forEach((checkbox, index) => {
-      try {
-        const videoId = checkbox.dataset.videoId;
-        console.log(`📋 Processing checkbox ${index + 1}: videoId=${videoId}`);
-        
-        if (!videoId) {
-          console.warn(`⚠️ Checkbox ${index + 1} has no videoId`);
-          return;
-        }
-        
-        // Check if the parent video element is visible
-        const parentContainer = checkbox.closest('ytd-playlist-video-renderer, ytd-video-renderer, [class*="video-renderer"]');
-        if (parentContainer) {
-          const isVisible = parentContainer.style.display !== 'none';
-          
-          if (!isVisible) {
-            console.log(`⏭️ Checkbox ${index + 1}: Parent video is hidden, skipping`);
-            hiddenCount++;
-            return;
-          }
-        }
-        
-        processedCount++;
-        
-        // Check if already selected
-        if (checkbox.checked) {
-          alreadySelected++;
-          console.log(`ℹ️ Checkbox ${index + 1} already selected`);
-        } else {
-          selectedCount++;
-          console.log(`✅ Selecting checkbox ${index + 1}`);
-          // Select checkbox
-          checkbox.checked = true;
-        }
-        
-        // Add to selection set
-        this.selectedVideos.add(videoId);
-        
-        // Update visual style
-        const container = checkbox.parentElement;
-        if (container && container.classList.contains('checkbox-container')) {
-          container.style.backgroundColor = 'rgba(204, 0, 0, 0.9)';
-          container.style.borderColor = 'rgba(255, 255, 255, 0.8)';
-        }
-        
-        // Apply visual feedback to parent container
-        if (parentContainer) {
-          parentContainer.style.backgroundColor = 'rgba(255, 193, 7, 0.2)';
-          parentContainer.style.border = '2px solid rgba(255, 193, 7, 0.5)';
-        }
-        
-        // Trigger change event
-        const changeEvent = new Event('change', { bubbles: false });
-        checkbox.dispatchEvent(changeEvent);
-        
-      } catch (error) {
-        console.error(`❌ Error processing checkbox ${index + 1}:`, error);
-      }
-    });
-    
-    console.log('');
-    console.log('📊 Selection Results (Visible Videos Only):');
-    console.log(`  - Total checkboxes found: ${checkboxes.length}`);
-    console.log(`  - Hidden videos skipped: ${hiddenCount}`);
-    console.log(`  - Visible videos processed: ${processedCount}`);
-    console.log(`  - Newly selected: ${selectedCount}`);
-    console.log(`  - Already selected: ${alreadySelected}`);
-    console.log(`  - Total in selection set: ${this.selectedVideos.size}`);
-    console.log('');
-    
-    // Force UI update
-    this.updateSelectedCount();
-    this.saveState();
-    
-    // Show notification with accurate count
-    const visibleSelectedCount = selectedCount + alreadySelected;
-    if (selectedCount > 0) {
-      this.showNotification(`✅ 表示中の${selectedCount}個の動画を新たに選択しました（合計: ${this.selectedVideos.size}個）`);
-    } else if (alreadySelected > 0) {
-      this.showNotification(`ℹ️ 表示中のすべての動画（${alreadySelected}個）はすでに選択されています`);
-    } else {
-      this.showNotification('⚠️ 選択できる動画が見つかりません');
-    }
-    
-    // Debug verification
-    const finalCheckboxes = document.querySelectorAll('.bulk-delete-checkbox:checked');
-    console.log(`✅ Final verification: ${finalCheckboxes.length} checkboxes are now checked`);
-  }
-  
-  
-  deselectAllVideos() {
-    console.log('❌ === DESELECT ALL VIDEOS (VISIBLE ONLY) ===');
-    
-    const checkboxes = document.querySelectorAll('.bulk-delete-checkbox');
-    console.log(`🔍 Found ${checkboxes.length} checkboxes to deselect`);
-    
-    if (checkboxes.length === 0) {
-      this.showNotification('⚠️ 選択解除する動画が見つかりません');
-      return;
-    }
-    
-    let deselectedCount = 0;
-    let alreadyDeselected = 0;
-    let hiddenCount = 0;
-    let processedCount = 0;
-    const deselectedVideoIds = [];
-    
-    checkboxes.forEach((checkbox, index) => {
-      try {
-        const videoId = checkbox.dataset.videoId;
-        console.log(`📋 Processing checkbox ${index + 1}: videoId=${videoId}, checked=${checkbox.checked}`);
-        
-        if (!videoId) {
-          console.warn(`⚠️ Checkbox ${index + 1} has no videoId`);
-          return;
-        }
-        
-        // Check if the parent video element is visible
-        const parentContainer = checkbox.closest('ytd-playlist-video-renderer, ytd-video-renderer, [class*="video-renderer"]');
-        if (parentContainer) {
-          const isVisible = parentContainer.style.display !== 'none';
-          
-          if (!isVisible) {
-            console.log(`⏭️ Checkbox ${index + 1}: Parent video is hidden, skipping`);
-            hiddenCount++;
-            return;
-          }
-        }
-        
-        processedCount++;
-        
-        if (checkbox.checked) {
-          // Uncheck checkbox
-          checkbox.checked = false;
-          
-          // Update visual style
-          const container = checkbox.parentElement;
-          if (container && container.classList.contains('checkbox-container')) {
-            container.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            container.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-          }
-          
-          // Remove visual feedback from parent container
-          if (parentContainer) {
-            parentContainer.style.backgroundColor = '';
-            parentContainer.style.border = '';
-          }
-          
-          // Remove from selected videos set
-          this.selectedVideos.delete(videoId);
-          deselectedVideoIds.push(videoId);
-          deselectedCount++;
-          
-          // Trigger change event
-          const changeEvent = new Event('change', { bubbles: false });
-          checkbox.dispatchEvent(changeEvent);
-          
-        } else {
-          alreadyDeselected++;
-          console.log(`ℹ️ Checkbox ${index + 1} was already deselected`);
-        }
-        
-      } catch (error) {
-        console.error(`❌ Error processing checkbox ${index + 1}:`, error);
-      }
-    });
-    
-    console.log('');
-    console.log('📊 Deselection Results (Visible Videos Only):');
-    console.log(`  - Total checkboxes found: ${checkboxes.length}`);
-    console.log(`  - Hidden videos skipped: ${hiddenCount}`);
-    console.log(`  - Visible videos processed: ${processedCount}`);
-    console.log(`  - Deselected: ${deselectedCount}`);
-    console.log(`  - Already deselected: ${alreadyDeselected}`);
-    console.log(`  - Remaining selected videos: ${this.selectedVideos.size}`);
-    console.log(`  - Deselected video IDs:`, deselectedVideoIds);
-    console.log('');
-    
-    // Force update UI
-    this.updateSelectedCount();
-    this.saveState();
-    
-    // Show appropriate notification
-    if (deselectedCount > 0) {
-      this.showNotification(`❌ 表示中の${deselectedCount}個の動画の選択を解除しました（残り: ${this.selectedVideos.size}個）`);
-    } else if (alreadyDeselected > 0) {
-      this.showNotification('ℹ️ 表示中のすべての動画の選択はすでに解除されています');
-    } else {
-      this.showNotification('⚠️ 選択解除できる動画が見つかりません');
-    }
-  }
-  
-  async deleteSelectedVideos() {
-    if (this.selectedVideos.size === 0) {
-      this.showNotification('⚠️ 削除する動画が選択されていません');
-      return;
-    }
-    
-    const selectedCount = this.selectedVideos.size;
-    console.log(`🗑️ Starting deletion of ${selectedCount} selected videos`);
-    
-    const confirmed = await this.showConfirmDialog(
-      `${selectedCount}個の動画を削除しますか？\n\nこの操作は元に戻せません。`
-    );
-    
-    if (!confirmed) {
-      console.log('❌ User cancelled deletion');
-      this.showNotification('❌ 削除がキャンセルされました');
-      return;
-    }
-    
-    const allVideos = this.getVideoElements();
-    const videosToDelete = allVideos.filter(video => {
-      const videoId = this.getVideoId(video);
-      return this.selectedVideos.has(videoId);
-    });
-    
-    console.log(`📺 Found ${videosToDelete.length} videos to delete from ${allVideos.length} total videos`);
-    
-    if (videosToDelete.length === 0) {
-      console.error('❌ No matching videos found for deletion');
-      this.showNotification('❌ 削除する動画が見つかりません');
-      return;
-    }
-    
-    this.startDeletion(videosToDelete);
-  }
-  
-  async deleteAllVideos() {
-    console.log('🗑️ Starting deletion of all videos');
-    const videos = this.getVideoElements();
-    
-    if (videos.length === 0) {
-      this.showNotification('⚠️ 削除する動画が見つかりません');
-      return;
-    }
-    
-    console.log(`📺 Found ${videos.length} videos to delete`);
-    
-    const confirmed = await this.showConfirmDialog(
-      `すべての動画（${videos.length}個）を「後で見る」から削除しますか？\n\n⚠️ この操作は元に戻せません！`
-    );
-    
-    if (!confirmed) {
-      console.log('❌ User cancelled deletion');
-      this.showNotification('❌ 削除がキャンセルされました');
-      return;
-    }
-    
-    this.startDeletion(videos);
-  }
-  
-  startDeletion(videos) {
-    this.isDeleting = true;
-    this.totalToDelete = videos.length;
-    this.deleteProgress = 0;
-    
-    // Show progress UI
-    document.getElementById('bulk-delete-controls').style.display = 'none';
-    document.getElementById('progress-section').style.display = 'block';
-    
-    // Notify background script of deletion start
-    console.log(`📨 Notifying background script: Starting deletion of ${videos.length} videos`);
-    chrome.runtime.sendMessage({
-      type: 'DELETE_STARTED',
-      count: videos.length
-    });
-    
-    this.deleteVideosSequentially(videos, 0);
-  }
-  
-  async deleteVideosSequentially(videos, index) {
-    if (index >= videos.length || !this.isDeleting) {
-      this.completeDeletion();
-      return;
-    }
-    
-    const video = videos[index];
-    const videoId = this.getVideoId(video);
-    
-    console.log(`🗑️ Deleting video ${index + 1}/${videos.length}: ${videoId}`);
-    
-    try {
-      await this.deleteVideo(video);
-      this.deleteProgress++;
-      this.updateProgress();
-      
-      // Remove from selected videos
-      this.selectedVideos.delete(videoId);
-      
-      // Wait before next deletion to avoid rate limiting
-      setTimeout(() => {
-        this.deleteVideosSequentially(videos, index + 1);
-      }, 1000);
-      
-    } catch (error) {
-      console.error(`❌ Failed to delete video ${index + 1}:`, error);
-      
-      // Continue with next video
-      setTimeout(() => {
-        this.deleteVideosSequentially(videos, index + 1);
-      }, 1000);
-    }
-  }
-  
-  async deleteVideo(videoElement) {
-    return new Promise((resolve, reject) => {
-      console.log('🔍 Looking for menu button...');
-      
-      const menuSelectors = [
-        'button[aria-label*="操作メニュー"]',
-        'button[aria-label*="Action menu"]',
-        'ytd-menu-renderer button',
-        '[class*="menu-button"]'
-      ];
-      
-      let menuButton = null;
-      for (const selector of menuSelectors) {
-        menuButton = videoElement.querySelector(selector);
-        if (menuButton) {
-          console.log(`✅ Found menu button with selector: ${selector}`);
-          break;
-        }
-      }
-      
-      if (!menuButton) {
-        console.error('❌ No menu button found');
-        reject(new Error('Menu button not found'));
-        return;
-      }
-      
-      // Click menu button
-      menuButton.click();
-      console.log('👆 Menu button clicked');
-      
-      // Wait for menu to appear
-      setTimeout(() => {
-        console.log('🔍 Looking for delete option...');
-        
-        const deleteSelectors = [
-          'ytd-menu-service-item-renderer:contains("再生リストから削除")',
-          'ytd-menu-service-item-renderer:contains("Remove from")',
-          'yt-formatted-string:contains("再生リストから削除")',
-          'yt-formatted-string:contains("Remove from")',
-          '[role="menuitem"]:contains("削除")',
-          '[role="menuitem"]:contains("Remove")'
-        ];
-        
-        let deleteOption = null;
-        
-        // Try to find delete option by text content
-        const menuItems = document.querySelectorAll('ytd-menu-service-item-renderer, [role="menuitem"]');
-        
-        for (const item of menuItems) {
-          const text = item.textContent.toLowerCase();
-          if (text.includes('削除') || text.includes('remove') || text.includes('リストから')) {
-            deleteOption = item;
-            console.log(`✅ Found delete option: ${text}`);
-            break;
-          }
-        }
-        
-        if (!deleteOption) {
-          console.error('❌ Delete option not found');
-          console.log('🔍 Available menu items:');
-          menuItems.forEach((item, i) => {
-            console.log(`  ${i + 1}. ${item.textContent}`);
-          });
-          reject(new Error('Delete option not found'));
-          return;
-        }
-        
-        // Click delete option
-        deleteOption.click();
-        console.log('✅ Delete option clicked');
-        
-        // Wait for deletion to complete
-        setTimeout(() => {
-          resolve();
-        }, 500);
-        
-      }, 500);
-    });
-  }
-  
-  updateProgress() {
-    const percentage = (this.deleteProgress / this.totalToDelete) * 100;
-    
-    const progressFill = document.getElementById('progress-fill');
-    const progressText = document.getElementById('progress-text');
-    
-    if (progressFill) {
-      progressFill.style.width = `${percentage}%`;
-    }
-    
-    if (progressText) {
-      progressText.textContent = `${this.deleteProgress} / ${this.totalToDelete}`;
-    }
-    
-    console.log(`📊 Progress: ${this.deleteProgress}/${this.totalToDelete} (${percentage.toFixed(1)}%)`);
-  }
-  
-  completeDeletion() {
-    console.log('✅ Deletion completed');
-    
-    this.isDeleting = false;
-    
-    // Hide progress UI
-    document.getElementById('progress-section').style.display = 'none';
-    
-    // Show controls again
-    if (this.isEnabled) {
-      document.getElementById('bulk-delete-controls').style.display = 'block';
-    }
-    
-    // Update UI
-    this.updateSelectedCount();
-    
-    // Show completion notification
-    this.showNotification(`✅ ${this.deleteProgress}個の動画を削除しました`);
-    
-    // Save statistics
-    this.saveStatistics(this.deleteProgress);
-    
-    // Notify background script
-    chrome.runtime.sendMessage({
-      type: 'DELETE_COMPLETED',
-      deletedCount: this.deleteProgress
-    });
-    
-    // Reset progress
-    this.deleteProgress = 0;
-    this.totalToDelete = 0;
-  }
-  
-  cancelDeletion() {
-    console.log('⏹️ Canceling deletion...');
-    
-    this.isDeleting = false;
-    
-    // Hide progress UI
-    document.getElementById('progress-section').style.display = 'none';
-    
-    // Show controls again
-    if (this.isEnabled) {
-      document.getElementById('bulk-delete-controls').style.display = 'block';
-    }
-    
-    this.showNotification(`⏹️ 削除をキャンセルしました（${this.deleteProgress}個削除済み）`);
-    
-    // Save partial statistics if any videos were deleted
-    if (this.deleteProgress > 0) {
-      this.saveStatistics(this.deleteProgress);
-    }
-    
-    // Reset progress
-    this.deleteProgress = 0;
-    this.totalToDelete = 0;
-  }
-  
-  // Enhanced Japanese text processing
-  normalizeJapaneseText(text) {
-    if (!text) return { original: '', normalized: '', variants: [] };
-    
-    const original = text.toString().trim();
-    
-    // Basic normalization
-    let normalized = original.toLowerCase();
-    
-    // Convert fullwidth to halfwidth
-    normalized = normalized.replace(/[！-～]/g, function(s) {
-      return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
-    });
-    
-    // Convert halfwidth katakana to fullwidth
-    normalized = normalized.replace(/[ｦ-ﾟ]/g, function(s) {
-      const code = s.charCodeAt(0);
-      return String.fromCharCode(code + 0x60);
-    });
-    
-    // Create variants for better matching
-    const variants = [original, normalized];
-    
-    // Convert katakana to hiragana
-    const hiragana = normalized.replace(/[ァ-ヶ]/g, function(s) {
-      return String.fromCharCode(s.charCodeAt(0) - 0x60);
-    });
-    if (hiragana !== normalized) variants.push(hiragana);
-    
-    // Convert hiragana to katakana
-    const katakana = normalized.replace(/[ぁ-ゖ]/g, function(s) {
-      return String.fromCharCode(s.charCodeAt(0) + 0x60);
-    });
-    if (katakana !== normalized) variants.push(katakana);
-    
-    // Remove duplicates
-    const uniqueVariants = [...new Set(variants)];
-    
-    return {
-      original,
-      normalized,
-      variants: uniqueVariants
-    };
-  }
-  
-  matchesJapaneseText(searchTerm, targetText) {
-    if (!searchTerm || !targetText) return false;
-    
-    const searchNormalized = this.normalizeJapaneseText(searchTerm);
-    const targetNormalized = this.normalizeJapaneseText(targetText);
-    
-    // Try matching with all variants
-    for (const searchVariant of searchNormalized.variants) {
-      for (const targetVariant of targetNormalized.variants) {
-        if (targetVariant.includes(searchVariant)) {
-          return true;
-        }
-      }
-    }
-    
-    return false;
-  }
-  
-  // Number range parsing for playlist filtering
-  parseNumberRange(rangeText) {
-    if (!rangeText || !rangeText.trim()) {
-      return null; // No range specified
-    }
-    
-    const trimmed = rangeText.trim();
-    console.log(`📊 Parsing range: "${trimmed}"`);
-    
-    // Pattern: start-end, start-, -end, or single number
-    const patterns = [
-      /^(\d+)-(\d+)$/, // "1-50"
-      /^(\d+)-$/, // "50-"
-      /^-(\d+)$/, // "-100"
-      /^(\d+)$/ // "50" (single number)
-    ];
-    
-    for (let i = 0; i < patterns.length; i++) {
-      const match = trimmed.match(patterns[i]);
-      if (match) {
-        switch (i) {
-          case 0: // start-end
-            const start = parseInt(match[1]);
-            const end = parseInt(match[2]);
-            console.log(`📊 Range parsed: ${start}-${end}`);
-            return { start, end };
-            
-          case 1: // start-
-            const startOnly = parseInt(match[1]);
-            console.log(`📊 Range parsed: ${startOnly}- (to end)`);
-            return { start: startOnly, end: Number.MAX_SAFE_INTEGER };
-            
-          case 2: // -end
-            const endOnly = parseInt(match[1]);
-            console.log(`📊 Range parsed: -${endOnly} (from start)`);
-            return { start: 1, end: endOnly };
-            
-          case 3: // single number
-            const single = parseInt(match[1]);
-            console.log(`📊 Range parsed: ${single} (single number)`);
-            return { start: single, end: single };
-        }
-      }
-    }
-    
-    console.warn(`⚠️ Invalid range format: "${trimmed}"`);
-    return null;
-  }
-  
-  // Get video index from YouTube's playlist numbering
-  getVideoIndex(videoElement) {
-    try {
-      // Try to find the index number element in YouTube's DOM
-      const indexSelectors = [
-        '.ytd-playlist-video-renderer .index',
-        '.index .style-scope.ytd-playlist-video-renderer',
-        '.index-message',
-        '.index',
-        '[class*="index"]'
-      ];
-      
-      for (const selector of indexSelectors) {
-        const indexElement = videoElement.querySelector(selector);
-        if (indexElement) {
-          const indexText = indexElement.textContent.trim();
-          const indexNumber = parseInt(indexText);
-          
-          if (!isNaN(indexNumber)) {
-            console.log(`📊 Found index: ${indexNumber} with selector: ${selector}`);
-            return indexNumber;
-          }
-        }
-      }
-      
-      // Fallback: try to find any element with numeric content that might be the index
-      const allElements = videoElement.querySelectorAll('*');
-      for (const element of allElements) {
-        const text = element.textContent.trim();
-        if (/^\d{1,4}$/.test(text)) {
-          const num = parseInt(text);
-          if (num > 0 && num < 10000) { // Reasonable range for playlist index
-            console.log(`📊 Found potential index: ${num} in element: ${element.tagName}`);
-            return num;
-          }
-        }
-      }
-      
-      console.warn('⚠️ No index number found for video element');
-      return null;
-      
-    } catch (error) {
-      console.error('❌ Error getting video index:', error);
-      return null;
-    }
-  }
-  
-  // Combined filtering function
-  applyFilters() {
-    console.log('');
-    console.log('🔍 ========================================');
-    console.log('🔍 === APPLYING COMBINED FILTERS ===');
-    console.log('🔍 ========================================');
-    console.log('');
-    
-    const titleFilter = document.getElementById('title-filter')?.value || '';
-    const rangeFilter = document.getElementById('range-filter')?.value || '';
-    
-    console.log(`🔍 Title filter: "${titleFilter}"`);
-    console.log(`📊 Range filter: "${rangeFilter}"`);
-    
-    this.filterVideos(titleFilter, rangeFilter);
-  }
-  
-  filterVideos(searchTerm = '', rangeText = '') {
-    console.log('');
-    console.log('🔍 ========================================');
-    console.log('🔍 === FILTERING VIDEOS (ENHANCED WITH RANGE) ===');
-    console.log('🔍 ========================================');
-    console.log('');
-    
-    console.log(`🔍 Search term: "${searchTerm}"`);
-    console.log(`📊 Range text: "${rangeText}"`);
-    
-    const videos = this.getVideoElements();
-    console.log(`📺 Found ${videos.length} video elements to filter`);
-    
-    if (videos.length === 0) {
-      console.warn('⚠️ No videos found to filter');
-      return;
-    }
-    
-    // Parse range filter
-    const rangeFilter = this.parseNumberRange(rangeText);
-    console.log(`📊 Parsed range filter:`, rangeFilter);
-    
-    // Enhanced normalization for search term
-    const normalizedSearch = this.normalizeJapaneseText(searchTerm);
-    console.log(`🔍 Normalized search variants:`, normalizedSearch.variants);
-    
-    // If both filters are empty, show all videos
-    if ((!searchTerm || searchTerm.trim() === '') && !rangeFilter) {
-      console.log('📺 No filters applied, showing all videos');
-      videos.forEach((video, index) => {
-        video.style.display = '';
-        console.log(`✅ Video ${index + 1}: shown (no filters)`);
-      });
-      console.log('✅ Filter completed - all videos shown');
-      return;
-    }
-    
-    let shownCount = 0;
-    let hiddenCount = 0;
-    let errorCount = 0;
-    let rangeFilteredCount = 0;
-    let titleFilteredCount = 0;
-    
-    videos.forEach((video, index) => {
-      try {
-        // Get video index for range filtering
-        const videoIndex = this.getVideoIndex(video);
-        console.log(`📊 Video ${index + 1}: index = ${videoIndex}`);
-        
-        // Check range filter first (if specified)
-        let passesRangeFilter = true;
-        if (rangeFilter) {
-          if (videoIndex === null) {
-            console.warn(`⚠️ Video ${index + 1}: Could not determine index, treating as outside range`);
-            passesRangeFilter = false;
-          } else {
-            passesRangeFilter = videoIndex >= rangeFilter.start && videoIndex <= rangeFilter.end;
-            console.log(`📊 Video ${index + 1}: index ${videoIndex} in range [${rangeFilter.start}-${rangeFilter.end}]: ${passesRangeFilter}`);
-          }
-          
-          if (!passesRangeFilter) {
-            rangeFilteredCount++;
-          }
-        }
-        
-        // If range filter fails, hide video and skip title checking
-        if (!passesRangeFilter) {
-          video.style.display = 'none';
-          hiddenCount++;
-          console.log(`❌ Video ${index + 1}: HIDDEN by range filter`);
-          return;
-        }
-        
-        // Check title/channel filter (if specified)
-        let passesTitleFilter = true;
-        if (searchTerm && searchTerm.trim() !== '') {
-          // Try multiple selectors to find the title element
-          const titleSelectors = [
-            '#video-title',
-            'h3 a[href*="/watch"]',
-            'a[href*="/watch"] #video-title',
-            '[id="video-title"]',
-            'ytd-video-meta-block #video-title',
-            'a[href*="/watch"] span[title]',
-            'h3 a span',
-            'a[href*="/watch"]'
-          ];
-          
-          let titleElement = null;
-          let titleText = '';
-          
-          // Try each selector until we find the title
-          for (const selector of titleSelectors) {
-            titleElement = video.querySelector(selector);
-            if (titleElement) {
-              // Get text content or title attribute
-              titleText = titleElement.textContent || titleElement.title || titleElement.getAttribute('title') || '';
-              titleText = titleText.trim();
-              
-              if (titleText && titleText.length > 0) {
-                console.log(`✅ Video ${index + 1} title found with selector "${selector}": "${titleText}"`);
-                break;
-              } else {
-                console.log(`⚠️ Video ${index + 1} selector "${selector}" found element but no text`);
-              }
-            }
-          }
-          
-          // Try multiple selectors to find the channel name element
-          const channelSelectors = [
-            '#channel-name a',
-            '#channel-name',
-            'ytd-channel-name a',
-            'ytd-channel-name',
-            'a[href*="/@"]',
-            'a[href*="/channel/"]',
-            '#metadata #channel-name a',
-            '#metadata #channel-name',
-            '.ytd-video-meta-block #channel-name a',
-            '.ytd-video-meta-block #channel-name',
-            'ytd-video-owner-renderer a',
-            'ytd-video-owner-renderer #channel-name'
-          ];
-          
-          let channelElement = null;
-          let channelText = '';
-          
-          // Try each selector until we find the channel name
-          for (const selector of channelSelectors) {
-            channelElement = video.querySelector(selector);
-            if (channelElement) {
-              // Get text content or title attribute
-              channelText = channelElement.textContent || channelElement.title || channelElement.getAttribute('title') || '';
-              channelText = channelText.trim();
-              
-              if (channelText && channelText.length > 0) {
-                console.log(`✅ Video ${index + 1} channel found with selector "${selector}": "${channelText}"`);
-                break;
-              } else {
-                console.log(`⚠️ Video ${index + 1} channel selector "${selector}" found element but no text`);
-              }
-            }
-          }
-          
-          if (!titleText || titleText.length === 0) {
-            console.warn(`⚠️ Video ${index + 1}: No title text found with any selector`);
-            console.log(`🔍 Video ${index + 1} HTML preview:`, video.outerHTML.substring(0, 200) + '...');
-            // Show video by default if we can't get the title
-            passesTitleFilter = true;
-          } else {
-            // Combine title and channel text for searching
-            const combinedText = titleText + (channelText ? ' ' + channelText : '');
-            console.log(`📝 Video ${index + 1} combined search text: "${combinedText}"`);
-            
-            // Enhanced Japanese text matching on combined text
-            passesTitleFilter = this.matchesJapaneseText(searchTerm, combinedText);
-            
-            const normalizedTarget = this.normalizeJapaneseText(combinedText);
-            console.log(`📝 Video ${index + 1} combined variants:`, normalizedTarget.variants);
-            console.log(`🔍 Video ${index + 1} matches "${searchTerm}": ${passesTitleFilter}`);
-            
-            if (!passesTitleFilter) {
-              titleFilteredCount++;
-            }
-          }
-        }
-        
-        // Show or hide video based on both filters
-        if (passesTitleFilter) {
-          video.style.display = '';
-          shownCount++;
-          console.log(`✅ Video ${index + 1}: SHOWN - passes all filters`);
-        } else {
-          video.style.display = 'none';
-          hiddenCount++;
-          console.log(`❌ Video ${index + 1}: HIDDEN by title filter`);
-        }
-        
-      } catch (error) {
-        console.error(`❌ Error filtering video ${index + 1}:`, error);
-        // Show video by default on error
-        video.style.display = '';
-        errorCount++;
-      }
-    });
-    
-    console.log('');
-    console.log('📊 Enhanced Filter Results Summary (with Range Support):');
-    console.log(`  - Total videos: ${videos.length}`);
-    console.log(`  - Shown: ${shownCount}`);
-    console.log(`  - Hidden: ${hiddenCount}`);
-    console.log(`  - Hidden by range filter: ${rangeFilteredCount}`);
-    console.log(`  - Hidden by title filter: ${titleFilteredCount}`);
-    console.log(`  - Errors: ${errorCount}`);
-    console.log(`  - Title search term: "${searchTerm}"`);
-    console.log(`  - Range filter: "${rangeText}" -> ${rangeFilter ? `[${rangeFilter.start}-${rangeFilter.end}]` : 'none'}`);
-    console.log(`  - Search targets: Title + Channel Name + Index Number`);
-    console.log(`  - Japanese normalization: Active`);
-    console.log('');
-    
-    // Show notification to user
-    this.showFilterNotification(searchTerm, rangeText, rangeFilter, shownCount, videos.length, rangeFilteredCount, titleFilteredCount);
-    
-    console.log('✅ === ENHANCED FILTER PROCESS WITH RANGE COMPLETED ===');
-  }
-  
-  
-  // Enhanced notification for combined filtering
-  showFilterNotification(searchTerm, rangeText, rangeFilter, shownCount, totalCount, rangeFilteredCount, titleFilteredCount) {
-    let message = '';
-    
-    // Determine what filters are active
-    const hasSearchFilter = searchTerm && searchTerm.trim() !== '';
-    const hasRangeFilter = rangeFilter !== null;
-    
-    if (!hasSearchFilter && !hasRangeFilter) {
-      // No filters
-      message = `📺 すべての動画を表示しています（${totalCount}個）`;
-    } else if (shownCount === 0) {
-      // No results
-      if (hasSearchFilter && hasRangeFilter) {
-        message = `🔍 「${searchTerm}」+ 範囲「${rangeText}」に一致する動画が見つかりません`;
-      } else if (hasSearchFilter) {
-        message = `🔍 「${searchTerm}」に一致する動画が見つかりません（タイトル・チャンネル名対応）`;
-      } else {
-        message = `📊 範囲「${rangeText}」に該当する動画が見つかりません`;
-      }
-    } else {
-      // Has results
-      let filterDescription = '';
-      
-      if (hasSearchFilter && hasRangeFilter) {
-        filterDescription = `「${searchTerm}」+ 範囲「${rangeText}」`;
-      } else if (hasSearchFilter) {
-        filterDescription = `「${searchTerm}」`;
-      } else {
-        filterDescription = `範囲「${rangeText}」`;
-      }
-      
-      message = `🔍 ${filterDescription}でフィルタ: ${shownCount}個表示中（全${totalCount}個中）`;
-    }
-    
-    this.showNotification(message);
-  }
-  
-  showNotification(message) {
-    // Remove existing notification
-    const existingNotification = document.querySelector('.bulk-delete-notification');
-    if (existingNotification) {
-      existingNotification.remove();
-    }
-    
-    // Create new notification
-    const notification = document.createElement('div');
-    notification.className = 'bulk-delete-notification';
-    notification.textContent = message;
-    
-    // Add to page
-    document.body.appendChild(notification);
-    
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-      if (notification.parentNode) {
-        notification.remove();
-      }
-    }, 5000);
-  }
-  
-  async showConfirmDialog(message) {
-    return new Promise((resolve) => {
-      const confirmed = confirm(message);
-      resolve(confirmed);
-    });
-  }
-  
-  saveState() {
-    try {
-      const state = {
-        isEnabled: this.isEnabled,
-        selectedVideos: Array.from(this.selectedVideos)
-      };
-      localStorage.setItem('bulkDeleteState', JSON.stringify(state));
-    } catch (error) {
-      console.error('Error saving state:', error);
-    }
-  }
-  
-  restoreState() {
-    try {
-      const saved = localStorage.getItem('bulkDeleteState');
-      if (saved) {
-        const state = JSON.parse(saved);
-        this.selectedVideos = new Set(state.selectedVideos || []);
-        
-        // Don't automatically restore enabled state - let user decide
-        console.log(`🔄 Restored state: ${this.selectedVideos.size} selected videos`);
-      }
-    } catch (error) {
-      console.error('Error restoring state:', error);
-    }
-  }
-  
-  saveStatistics(deletedCount) {
-    try {
-      const stats = JSON.parse(localStorage.getItem('bulkDeleteStats') || '{}');
-      const today = new Date().toDateString();
-      
-      if (!stats[today]) {
-        stats[today] = 0;
-      }
-      
-      stats[today] += deletedCount;
-      stats.total = (stats.total || 0) + deletedCount;
-      
-      localStorage.setItem('bulkDeleteStats', JSON.stringify(stats));
-      console.log(`📊 Statistics updated: ${deletedCount} deleted today, ${stats.total} total`);
-    } catch (error) {
-      console.error('Error saving statistics:', error);
-    }
-  }
-  
   handleMessage(request, sender, sendResponse) {
     console.log('📨 Message received:', request);
     
@@ -1701,17 +416,17 @@ class WatchLaterBulkDelete {
           isDeleting: this.isDeleting
         });
         break;
-      
+        
       case 'TOGGLE_MODE':
         this.toggleBulkDeleteMode();
         sendResponse({ success: true });
         break;
-      
+        
       case 'DELETE_SELECTED':
         this.deleteSelectedVideos();
         sendResponse({ success: true });
         break;
-      
+        
       case 'DELETE_ALL':
         this.deleteAllVideos();
         sendResponse({ success: true });
@@ -1731,204 +446,1261 @@ class WatchLaterBulkDelete {
         this.simpleDeleteTest();
         sendResponse({ success: true });
         break;
-      
+        
       default:
-        console.warn('Unknown message type:', request.type);
+        console.log('⚠️ Unknown message type:', request.type);
         sendResponse({ error: 'Unknown message type' });
     }
   }
   
-  // Debug function to analyze delete process
-  debugDeleteProcess() {
+  restoreState() {
+    console.log('🔄 Restoring extension state...');
+    try {
+      const savedState = localStorage.getItem('bulkDeleteState');
+      if (savedState) {
+        const state = JSON.parse(savedState);
+        console.log('📂 Found saved state:', state);
+        
+        if (state.isEnabled) {
+          console.log('🔄 Restoring enabled state...');
+          this.toggleBulkDeleteMode();
+        }
+      } else {
+        console.log('ℹ️ No saved state found');
+      }
+    } catch (error) {
+      console.error('❌ Error restoring state:', error);
+    }
+  }
+  
+  saveState() {
+    try {
+      const state = {
+        isEnabled: this.isEnabled
+      };
+      localStorage.setItem('bulkDeleteState', JSON.stringify(state));
+      console.log('💾 State saved:', state);
+    } catch (error) {
+      console.error('❌ Error saving state:', error);
+    }
+  }
+  
+  toggleBulkDeleteMode() {
     console.log('');
-    console.log('🔎 ========================================');
-    console.log('🔎 === DEBUG: DELETE PROCESS ANALYSIS ===');
-    console.log('🔎 ========================================');
+    console.log('🔄 ========================================');
+    console.log('🔄 === TOGGLING BULK DELETE MODE ===');
+    console.log('🔄 ========================================');
     console.log('');
     
-    const videos = this.getVideoElements();
-    console.log(`📺 Found ${videos.length} video elements`);
+    console.log(`🔍 Current state: isEnabled = ${this.isEnabled}`);
     
-    if (videos.length === 0) {
-      console.log('❌ No videos found for analysis');
+    this.isEnabled = !this.isEnabled;
+    console.log(`🔄 New state: isEnabled = ${this.isEnabled}`);
+    
+    const toggleButton = document.getElementById('toggle-bulk-delete');
+    const controls = document.getElementById('bulk-delete-controls');
+    
+    if (!toggleButton) {
+      console.error('❌ Toggle button not found');
       return;
     }
     
-    // Analyze first few videos
-    const analyzeCount = Math.min(3, videos.length);
-    console.log(`🔍 Analyzing first ${analyzeCount} videos...`);
+    if (!controls) {
+      console.error('❌ Controls element not found');
+      return;
+    }
     
-    for (let i = 0; i < analyzeCount; i++) {
-      const video = videos[i];
-      console.log(`\n📺 Video ${i + 1} Analysis:`);
+    if (this.isEnabled) {
+      console.log('✅ Enabling bulk delete mode...');
       
-      // Video ID
-      const videoId = this.getVideoId(video);
-      console.log(`  - Video ID: ${videoId}`);
+      // Update button
+      toggleButton.textContent = '一括削除モードを無効化';
+      toggleButton.dataset.enabled = 'true';
+      console.log('✅ Toggle button updated to "disable" state');
       
-      // Check for menu button
-      const menuSelectors = [
-        'button[aria-label*="操作メニュー"]',
-        'button[aria-label*="Action menu"]',
-        'ytd-menu-renderer button',
-        '[class*="menu-button"]',
-        'button[aria-label*="More actions"]',
-        'yt-icon-button[aria-label*="操作"]',
-        'yt-icon-button[aria-label*="Action"]'
-      ];
+      // Show controls
+      controls.style.display = 'block';
+      console.log('✅ Controls shown');
       
-      let foundMenuButton = false;
-      for (const selector of menuSelectors) {
-        const menuButton = video.querySelector(selector);
-        if (menuButton) {
-          console.log(`  ✅ Menu button found: ${selector}`);
-          console.log(`  - Button text: "${menuButton.textContent.trim()}"`);
-          console.log(`  - Button aria-label: "${menuButton.getAttribute('aria-label') || 'none'}"`);
-          foundMenuButton = true;
-          break;
+      // Add checkboxes to videos
+      this.addCheckboxesToVideos();
+      console.log('✅ Checkboxes added to videos');
+      
+      // Enable filter functionality
+      this.applyFilters();
+      console.log('✅ Filters applied');
+      
+    } else {
+      console.log('❌ Disabling bulk delete mode...');
+      
+      // Update button
+      toggleButton.textContent = '一括削除モードを有効化';
+      toggleButton.dataset.enabled = 'false';
+      console.log('✅ Toggle button updated to "enable" state');
+      
+      // Hide controls
+      controls.style.display = 'none';
+      console.log('✅ Controls hidden');
+      
+      // Remove checkboxes
+      this.removeCheckboxes();
+      console.log('✅ Checkboxes removed');
+      
+      // Clear selections
+      this.selectedVideos.clear();
+      console.log('✅ Selections cleared');
+    }
+    
+    this.saveState();
+    console.log('💾 State saved');
+    
+    console.log('');
+    console.log('🎉 ========================================');
+    console.log('🎉 === TOGGLE COMPLETE ===');
+    console.log('🎉 ========================================');
+    console.log('');
+  }
+  
+  getVideoElements() {
+    // Multiple selectors to catch different layouts
+    const selectors = [
+      'ytd-playlist-video-renderer', // Standard playlist view
+      'ytd-playlist-video-list-renderer ytd-playlist-video-renderer', // Nested in list
+      '[role="main"] ytd-playlist-video-renderer', // Within main content
+      'ytd-playlist-panel-video-renderer' // Playlist panel (if applicable)
+    ];
+    
+    let videos = [];
+    for (const selector of selectors) {
+      const elements = document.querySelectorAll(selector);
+      if (elements.length > 0) {
+        videos = Array.from(elements);
+        console.log(`🎯 Found ${videos.length} videos using selector: ${selector}`);
+        break;
+      }
+    }
+    
+    if (videos.length === 0) {
+      console.log('⚠️ No videos found with any selector');
+    }
+    
+    return videos;
+  }
+  
+  addCheckboxesToVideos() {
+    console.log('');
+    console.log('☑️ ========================================');
+    console.log('☑️ === ADDING CHECKBOXES TO VIDEOS ===');
+    console.log('☑️ ========================================');
+    console.log('');
+    
+    const videos = this.getVideoElements();
+    console.log(`🎯 Found ${videos.length} video elements`);
+    
+    let addedCount = 0;
+    
+    videos.forEach((video, index) => {
+      // Check if checkbox already exists
+      if (video.querySelector('.bulk-delete-checkbox')) {
+        console.log(`⏭️ Checkbox already exists for video ${index + 1}`);
+        return;
+      }
+      
+      // Create checkbox container
+      const checkboxContainer = document.createElement('div');
+      checkboxContainer.className = 'checkbox-container';
+      
+      // Create checkbox
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'bulk-delete-checkbox';
+      checkbox.dataset.videoIndex = index;
+      
+      // Add change event listener
+      checkbox.addEventListener('change', (e) => {
+        console.log(`☑️ Checkbox ${index + 1} changed:`, e.target.checked);
+        
+        if (e.target.checked) {
+          this.selectedVideos.add(index);
+          console.log(`✅ Video ${index + 1} selected. Total selected: ${this.selectedVideos.size}`);
+        } else {
+          this.selectedVideos.delete(index);
+          console.log(`❌ Video ${index + 1} deselected. Total selected: ${this.selectedVideos.size}`);
+        }
+        
+        this.updateDeleteButton();
+      });
+      
+      checkboxContainer.appendChild(checkbox);
+      
+      // Find the best insertion point (thumbnail container)
+      const thumbnailContainer = video.querySelector('ytd-thumbnail') || 
+                               video.querySelector('#thumbnail') ||
+                               video.querySelector('.ytd-thumbnail');
+      
+      if (thumbnailContainer) {
+        // Make thumbnail container position relative for absolute positioning of checkbox
+        thumbnailContainer.style.position = 'relative';
+        thumbnailContainer.appendChild(checkboxContainer);
+        addedCount++;
+        console.log(`✅ Checkbox added to video ${index + 1}`);
+      } else {
+        console.log(`⚠️ Could not find thumbnail container for video ${index + 1}`);
+        console.log('🔍 Video element structure:', video.outerHTML.substring(0, 200) + '...');
+      }
+    });
+    
+    console.log(`🎉 Successfully added ${addedCount} checkboxes out of ${videos.length} videos`);
+    
+    // Update delete button state
+    this.updateDeleteButton();
+    
+    console.log('');
+    console.log('✅ ========================================');
+    console.log('✅ === CHECKBOX ADDITION COMPLETE ===');
+    console.log('✅ ========================================');
+    console.log('');
+  }
+  
+  removeCheckboxes() {
+    console.log('🧹 Removing all checkboxes...');
+    
+    const checkboxes = document.querySelectorAll('.bulk-delete-checkbox');
+    const containers = document.querySelectorAll('.checkbox-container');
+    
+    console.log(`🔍 Found ${checkboxes.length} checkboxes and ${containers.length} containers`);
+    
+    containers.forEach(container => container.remove());
+    
+    console.log('✅ All checkboxes removed');
+  }
+  
+  updateDeleteButton() {
+    const deleteButton = document.getElementById('delete-selected');
+    if (!deleteButton) {
+      console.log('⚠️ Delete button not found');
+      return;
+    }
+    
+    const selectedCount = this.selectedVideos.size;
+    
+    if (selectedCount > 0) {
+      deleteButton.disabled = false;
+      deleteButton.textContent = `🗑️ 選択した${selectedCount}件を削除`;
+      console.log(`✅ Delete button enabled for ${selectedCount} videos`);
+    } else {
+      deleteButton.disabled = true;
+      deleteButton.textContent = '動画を選択してください';
+      console.log('❌ Delete button disabled (no selections)');
+    }
+  }
+  
+  selectAllVideos() {
+    console.log('');
+    console.log('✅ ========================================');
+    console.log('✅ === SELECTING ALL VIDEOS ===');
+    console.log('✅ ========================================');
+    console.log('');
+    
+    const checkboxes = document.querySelectorAll('.bulk-delete-checkbox');
+    console.log(`🎯 Found ${checkboxes.length} checkboxes`);
+    
+    if (checkboxes.length === 0) {
+      console.log('⚠️ No checkboxes found. Adding checkboxes first...');
+      this.addCheckboxesToVideos();
+      // Retry after a short delay
+      setTimeout(() => {
+        this.selectAllVideos();
+      }, 500);
+      return;
+    }
+    
+    // Clear current selections
+    this.selectedVideos.clear();
+    
+    // Select all visible checkboxes
+    let selectedCount = 0;
+    checkboxes.forEach((checkbox, index) => {
+      // Only select visible checkboxes (not filtered out)
+      const videoElement = checkbox.closest('ytd-playlist-video-renderer');
+      if (videoElement && videoElement.style.display !== 'none') {
+        checkbox.checked = true;
+        const videoIndex = parseInt(checkbox.dataset.videoIndex) || index;
+        this.selectedVideos.add(videoIndex);
+        selectedCount++;
+        console.log(`✅ Selected video ${videoIndex + 1}`);
+      } else {
+        console.log(`⏭️ Skipped hidden video ${index + 1}`);
+      }
+    });
+    
+    console.log(`🎉 Selected ${selectedCount} videos out of ${checkboxes.length} total`);
+    
+    this.updateDeleteButton();
+    this.showNotification(`✅ ${selectedCount}件の動画を選択しました`);
+    
+    console.log('');
+    console.log('🎉 ========================================');
+    console.log('🎉 === SELECT ALL COMPLETE ===');
+    console.log('🎉 ========================================');
+    console.log('');
+  }
+  
+  deselectAllVideos() {
+    console.log('');
+    console.log('❌ ========================================');
+    console.log('❌ === DESELECTING ALL VIDEOS ===');
+    console.log('❌ ========================================');
+    console.log('');
+    
+    const checkboxes = document.querySelectorAll('.bulk-delete-checkbox');
+    console.log(`🎯 Found ${checkboxes.length} checkboxes`);
+    
+    // Clear selections
+    this.selectedVideos.clear();
+    
+    // Uncheck all checkboxes
+    checkboxes.forEach((checkbox, index) => {
+      checkbox.checked = false;
+      console.log(`❌ Deselected video ${index + 1}`);
+    });
+    
+    this.updateDeleteButton();
+    this.showNotification('❌ すべての選択を解除しました');
+    
+    console.log('');
+    console.log('✅ ========================================');
+    console.log('✅ === DESELECT ALL COMPLETE ===');
+    console.log('✅ ========================================');
+    console.log('');
+  }
+  
+  parseNumberRange(rangeText) {
+    if (!rangeText.trim()) return null;
+    
+    const text = rangeText.trim();
+    
+    // Pattern matching for different range formats
+    const patterns = [
+      { regex: /^(\d+)-(\d+)$/, type: 'range' },        // "1-50"
+      { regex: /^(\d+)-$/, type: 'from' },              // "50-"
+      { regex: /^-(\d+)$/, type: 'to' },                // "-100"
+      { regex: /^(\d+)$/, type: 'single' }              // "50"
+    ];
+    
+    for (const pattern of patterns) {
+      const match = text.match(pattern.regex);
+      if (match) {
+        switch (pattern.type) {
+          case 'range':
+            return {
+              start: parseInt(match[1]),
+              end: parseInt(match[2]),
+              type: 'range'
+            };
+          case 'from':
+            return {
+              start: parseInt(match[1]),
+              end: Infinity,
+              type: 'from'
+            };
+          case 'to':
+            return {
+              start: 1,
+              end: parseInt(match[1]),
+              type: 'to'
+            };
+          case 'single':
+            const num = parseInt(match[1]);
+            return {
+              start: num,
+              end: num,
+              type: 'single'
+            };
+        }
+      }
+    }
+    
+    return null;
+  }
+  
+  getVideoIndex(videoElement) {
+    // Try to find the index number displayed in the video element
+    const indexSelectors = [
+      '.index-message', // YouTube's index display
+      '.index', 
+      '[aria-label*="番"]',
+      '[aria-label*="位"]',
+      '.ytd-playlist-video-renderer .index-message',
+      'ytd-playlist-video-renderer [class*="index"]'
+    ];
+    
+    for (const selector of indexSelectors) {
+      const indexElement = videoElement.querySelector(selector);
+      if (indexElement) {
+        const indexText = indexElement.textContent || indexElement.innerText;
+        const match = indexText.match(/\d+/);
+        if (match) {
+          const index = parseInt(match[0]);
+          console.log(`📊 Found video index: ${index} from selector: ${selector}`);
+          return index;
+        }
+      }
+    }
+    
+    // Fallback: try to find by position in playlist
+    const allVideos = this.getVideoElements();
+    const videoIndex = allVideos.indexOf(videoElement);
+    if (videoIndex !== -1) {
+      const displayIndex = videoIndex + 1; // 1-based index
+      console.log(`📊 Fallback video index: ${displayIndex} (position-based)`);
+      return displayIndex;
+    }
+    
+    console.log('⚠️ Could not determine video index');
+    return null;
+  }
+  
+  applyFilters() {
+    console.log('');
+    console.log('🔍 ========================================');
+    console.log('🔍 === APPLYING FILTERS ===');
+    console.log('🔍 ========================================');
+    console.log('');
+    
+    const titleFilter = document.getElementById('title-filter')?.value?.toLowerCase() || '';
+    const rangeFilter = document.getElementById('range-filter')?.value || '';
+    
+    console.log(`🔍 Title filter: "${titleFilter}"`);
+    console.log(`📊 Range filter: "${rangeFilter}"`);
+    
+    const videos = this.getVideoElements();
+    console.log(`🎯 Found ${videos.length} video elements to filter`);
+    
+    // Parse range filter
+    const rangeCondition = this.parseNumberRange(rangeFilter);
+    if (rangeCondition) {
+      console.log('📊 Parsed range condition:', rangeCondition);
+    }
+    
+    let visibleCount = 0;
+    let hiddenCount = 0;
+    
+    videos.forEach((video, index) => {
+      let shouldShow = true;
+      
+      // Title/Channel filter
+      if (titleFilter) {
+        const titleElement = video.querySelector('a#video-title, #video-title, .ytd-playlist-video-renderer a[href*="/watch"]');
+        const channelElement = video.querySelector('ytd-channel-name a, .ytd-channel-name a, [href*="/channel/"], [href*="/@"]');
+        
+        const title = titleElement?.textContent?.toLowerCase() || '';
+        const channel = channelElement?.textContent?.toLowerCase() || '';
+        
+        // Combine title and channel for searching
+        const searchText = `${title} ${channel}`.toLowerCase();
+        
+        if (!searchText.includes(titleFilter)) {
+          shouldShow = false;
+          console.log(`🔍 Video ${index + 1} hidden by title/channel filter`);
         }
       }
       
-      if (!foundMenuButton) {
-        console.log('  ❌ No menu button found');
-        // List all buttons in the video element
-        const allButtons = video.querySelectorAll('button');
-        console.log(`  🔍 All buttons found: ${allButtons.length}`);
-        allButtons.forEach((btn, btnIndex) => {
-          console.log(`    ${btnIndex + 1}. "${btn.textContent.trim()}" [${btn.getAttribute('aria-label') || 'no aria-label'}]`);
-        });
+      // Range filter
+      if (shouldShow && rangeCondition) {
+        const videoIndex = this.getVideoIndex(video);
+        if (videoIndex !== null) {
+          const inRange = videoIndex >= rangeCondition.start && videoIndex <= rangeCondition.end;
+          if (!inRange) {
+            shouldShow = false;
+            console.log(`📊 Video ${index + 1} (playlist index: ${videoIndex}) hidden by range filter`);
+          }
+        } else {
+          // Hide videos where we can't determine the index
+          shouldShow = false;
+          console.log(`📊 Video ${index + 1} hidden (could not determine playlist index)`);
+        }
       }
       
-      // Check video element structure
-      console.log(`  - Element classes: ${video.className}`);
-      console.log(`  - Element children: ${video.children.length}`);
-      
-      // Look for title and other identifying info
-      const titleElement = video.querySelector('#video-title, h3 a, a[href*="/watch"]');
-      if (titleElement) {
-        const title = titleElement.textContent || titleElement.title || 'No title';
-        console.log(`  - Video title: "${title.substring(0, 50)}..."`);
+      // Apply visibility
+      if (shouldShow) {
+        video.style.display = '';
+        visibleCount++;
+      } else {
+        video.style.display = 'none';
+        hiddenCount++;
       }
+    });
+    
+    console.log(`📊 Filter results: ${visibleCount} visible, ${hiddenCount} hidden`);
+    
+    // Show notification
+    let message = '';
+    if (titleFilter && rangeCondition) {
+      message = `🔍 ${visibleCount}件の動画が条件に一致 (タイトル・チャンネル: "${titleFilter}", 範囲: ${rangeFilter})`;
+    } else if (titleFilter) {
+      message = `🔍 ${visibleCount}件の動画が条件に一致 (タイトル・チャンネル: "${titleFilter}")`;
+    } else if (rangeCondition) {
+      message = `📊 ${visibleCount}件の動画が条件に一致 (範囲: ${rangeFilter})`;
+    } else {
+      message = `📊 ${visibleCount}件の動画を表示中`;
     }
     
+    this.showNotification(message);
+    
     console.log('');
-    console.log('🔎 Debug analysis completed. Check the console output above.');
-    console.log('🔎 ========================================');
+    console.log('✅ ========================================');
+    console.log('✅ === FILTERS APPLIED ===');
+    console.log('✅ ========================================');
+    console.log('');
   }
   
-  // Test actual deletion process on one video
-  async testActualDelete() {
+  async deleteSelectedVideos() {
     console.log('');
-    console.log('🧪 ========================================');
-    console.log('🧪 === TEST: ACTUAL DELETE PROCESS ===');
-    console.log('🧪 ========================================');
+    console.log('🗑️ ========================================');
+    console.log('🗑️ === DELETING SELECTED VIDEOS ===');
+    console.log('🗑️ ========================================');
     console.log('');
     
-    const videos = this.getVideoElements();
-    if (videos.length === 0) {
-      console.log('❌ No videos available for delete test');
+    if (this.selectedVideos.size === 0) {
+      console.log('⚠️ No videos selected for deletion');
+      this.showNotification('⚠️ 削除する動画を選択してください');
       return;
     }
     
-    const testVideo = videos[0]; // Test with first video
-    const videoId = this.getVideoId(testVideo);
+    const selectedCount = this.selectedVideos.size;
+    console.log(`🎯 Deleting ${selectedCount} selected videos`);
     
-    console.log(`🧪 Testing delete process on video: ${videoId}`);
-    console.log('⚠️ WARNING: This will attempt to actually delete a video!');
-    
-    try {
-      await this.deleteVideo(testVideo);
-      console.log('✅ Delete test completed successfully');
-    } catch (error) {
-      console.error('❌ Delete test failed:', error);
-    }
-    
-    console.log('🧪 ========================================');
-  }
-  
-  // Simple delete test - just analyze, don't actually delete
-  simpleDeleteTest() {
-    console.log('');
-    console.log('⚙️ ========================================');
-    console.log('⚙️ === SIMPLE DELETE TEST (ANALYSIS ONLY) ===');
-    console.log('⚙️ ========================================');
-    console.log('');
-    
-    const videos = this.getVideoElements();
-    if (videos.length === 0) {
-      console.log('❌ No videos available for test');
+    // Confirm deletion
+    const confirmed = confirm(`選択した${selectedCount}件の動画を削除しますか？\n\nこの操作は元に戻せません。`);
+    if (!confirmed) {
+      console.log('❌ User cancelled deletion');
       return;
     }
     
-    const testVideo = videos[0];
-    const videoId = this.getVideoId(testVideo);
+    // Get video elements to delete
+    const videosToDelete = [];
+    const allVideos = this.getVideoElements();
     
-    console.log(`⚙️ Testing delete elements on video: ${videoId}`);
+    this.selectedVideos.forEach(index => {
+      if (allVideos[index]) {
+        videosToDelete.push(allVideos[index]);
+      }
+    });
     
-    // Step 1: Look for menu button
-    console.log('\n🔍 Step 1: Looking for menu button...');
-    const menuSelectors = [
+    console.log(`🎯 Found ${videosToDelete.length} video elements to delete`);
+    
+    if (videosToDelete.length === 0) {
+      console.log('❌ No video elements found for deletion');
+      this.showNotification('❌ 削除対象の動画が見つかりません');
+      return;
+    }
+    
+    await this.performDeletion(videosToDelete, 'selected');
+  }
+  
+  async deleteAllVideos() {
+    console.log('');
+    console.log('🗑️ ========================================');
+    console.log('🗑️ === DELETING ALL VIDEOS ===');
+    console.log('🗑️ ========================================');
+    console.log('');
+    
+    const videos = this.getVideoElements();
+    const visibleVideos = videos.filter(video => video.style.display !== 'none');
+    const videoCount = visibleVideos.length;
+    
+    if (videoCount === 0) {
+      console.log('⚠️ No visible videos found for deletion');
+      this.showNotification('⚠️ 削除する動画がありません');
+      return;
+    }
+    
+    console.log(`🎯 Deleting ${videoCount} visible videos`);
+    
+    // Confirm deletion
+    const confirmed = confirm(`表示中の${videoCount}件すべての動画を削除しますか？\n\nこの操作は元に戻せません。`);
+    if (!confirmed) {
+      console.log('❌ User cancelled deletion');
+      return;
+    }
+    
+    await this.performDeletion(visibleVideos, 'all');
+  }
+  
+  async performDeletion(videosToDelete, deleteType) {
+    console.log('');
+    console.log('⚡ ========================================');
+    console.log('⚡ === PERFORMING DELETION ===');
+    console.log('⚡ ========================================');
+    console.log('');
+    
+    this.isDeleting = true;
+    this.totalToDelete = videosToDelete.length;
+    this.deleteProgress = 0;
+    
+    console.log(`🎯 Starting deletion of ${this.totalToDelete} videos`);
+    
+    // Show progress section
+    this.showProgressSection();
+    
+    // Hide controls
+    const controls = document.getElementById('bulk-delete-controls');
+    if (controls) {
+      controls.style.display = 'none';
+    }
+    
+    let deletedCount = 0;
+    let errorCount = 0;
+    
+    for (let i = 0; i < videosToDelete.length; i++) {
+      if (!this.isDeleting) {
+        console.log('⏹️ Deletion cancelled by user');
+        break;
+      }
+      
+      const video = videosToDelete[i];
+      console.log(`🗑️ Deleting video ${i + 1}/${videosToDelete.length}`);
+      
+      try {
+        const success = await this.deleteVideo(video);
+        if (success) {
+          deletedCount++;
+          console.log(`✅ Video ${i + 1} deleted successfully`);
+        } else {
+          errorCount++;
+          console.log(`❌ Failed to delete video ${i + 1}`);
+        }
+      } catch (error) {
+        errorCount++;
+        console.error(`💥 Error deleting video ${i + 1}:`, error);
+      }
+      
+      this.deleteProgress = i + 1;
+      this.updateProgress();
+      
+      // Small delay between deletions to avoid rate limiting
+      await this.delay(500);
+    }
+    
+    console.log('');
+    console.log('📊 ========================================');
+    console.log('📊 === DELETION SUMMARY ===');
+    console.log('📊 ========================================');
+    console.log('');
+    console.log(`✅ Successfully deleted: ${deletedCount}`);
+    console.log(`❌ Failed to delete: ${errorCount}`);
+    console.log(`📊 Total processed: ${this.deleteProgress}`);
+    
+    // Hide progress section
+    this.hideProgressSection();
+    
+    // Show controls
+    if (controls) {
+      controls.style.display = 'block';
+    }
+    
+    // Reset state
+    this.isDeleting = false;
+    this.selectedVideos.clear();
+    
+    // Refresh checkboxes and update UI
+    this.removeCheckboxes();
+    setTimeout(() => {
+      this.addCheckboxesToVideos();
+      this.updateDeleteButton();
+    }, 1000);
+    
+    // Show completion notification
+    const message = `🎉 削除完了: ${deletedCount}件成功${errorCount > 0 ? `, ${errorCount}件失敗` : ''}`;
+    this.showNotification(message);
+    
+    console.log('');
+    console.log('🎉 ========================================');
+    console.log('🎉 === DELETION COMPLETE ===');
+    console.log('🎉 ========================================');
+    console.log('');
+  }
+  
+  async deleteVideo(videoElement) {
+    console.log('🎯 Attempting to delete video...');
+    
+    // Find the menu button (three dots)
+    const menuButtonSelectors = [
       'button[aria-label*="操作メニュー"]',
       'button[aria-label*="Action menu"]',
+      'button[aria-label*="その他の操作"]',
+      'button[aria-label*="More actions"]',
       'ytd-menu-renderer button',
-      '[class*="menu-button"]'
+      '#button[aria-label]',
+      'yt-icon-button[aria-label*="メニュー"]',
+      'yt-icon-button[aria-label*="menu"]',
+      '.dropdown-trigger',
+      '[role="button"][aria-haspopup="true"]'
     ];
     
     let menuButton = null;
-    for (const selector of menuSelectors) {
-      menuButton = testVideo.querySelector(selector);
+    for (const selector of menuButtonSelectors) {
+      menuButton = videoElement.querySelector(selector);
       if (menuButton) {
-        console.log(`✅ Found menu button: ${selector}`);
-        console.log(`   - aria-label: "${menuButton.getAttribute('aria-label')}"`);
+        console.log(`✅ Found menu button with selector: ${selector}`);
         break;
       }
     }
     
     if (!menuButton) {
-      console.log('❌ No menu button found');
+      console.log('❌ Menu button not found');
+      console.log('🔍 Video element HTML:');
+      console.log(videoElement.outerHTML.substring(0, 500) + '...');
+      return false;
+    }
+    
+    try {
+      // Click menu button
+      console.log('👆 Clicking menu button...');
+      menuButton.click();
+      await this.delay(300);
+      
+      // Find delete/remove option in the dropdown
+      const deleteOptionSelectors = [
+        'ytd-menu-service-item-renderer:has([aria-label*="削除"])',
+        'ytd-menu-service-item-renderer:has([aria-label*="Remove"])',
+        'ytd-menu-service-item-renderer:has([aria-label*="プレイリストから削除"])',
+        'ytd-menu-service-item-renderer:has([aria-label*="remove from"])',
+        'tp-yt-paper-item:has([aria-label*="削除"])',
+        'tp-yt-paper-item:has([aria-label*="Remove"])',
+        'a[href*="remove_from_playlist"]',
+        '[role="menuitem"]:has([aria-label*="削除"])',
+        '[role="menuitem"]:has([aria-label*="Remove"])',
+        'ytd-menu-service-item-renderer',
+        'tp-yt-paper-item'
+      ];
+      
+      let deleteOption = null;
+      for (const selector of deleteOptionSelectors) {
+        deleteOption = document.querySelector(selector);
+        if (deleteOption) {
+          const text = deleteOption.textContent || deleteOption.innerText || '';
+          const ariaLabel = deleteOption.getAttribute('aria-label') || '';
+          
+          // Check if this is actually a delete/remove option
+          if (text.includes('削除') || text.includes('Remove') || 
+              ariaLabel.includes('削除') || ariaLabel.includes('Remove') ||
+              text.includes('プレイリストから削除') || ariaLabel.includes('remove from')) {
+            console.log(`✅ Found delete option with selector: ${selector}`);
+            console.log(`📝 Delete option text: "${text}"`);
+            console.log(`🏷️ Delete option aria-label: "${ariaLabel}"`);
+            break;
+          } else {
+            deleteOption = null; // Reset if not a delete option
+          }
+        }
+      }
+      
+      if (!deleteOption) {
+        console.log('❌ Delete option not found in menu');
+        
+        // Debug: show available menu options
+        const menuItems = document.querySelectorAll('ytd-menu-service-item-renderer, tp-yt-paper-item, [role="menuitem"]');
+        console.log(`🔍 Available menu items (${menuItems.length}):`);
+        menuItems.forEach((item, index) => {
+          const text = item.textContent || item.innerText || '';
+          const ariaLabel = item.getAttribute('aria-label') || '';
+          console.log(`  ${index + 1}. "${text.trim()}" (aria-label: "${ariaLabel}")`);
+        });
+        
+        // Close menu by clicking elsewhere
+        document.body.click();
+        await this.delay(200);
+        
+        return false;
+      }
+      
+      // Click delete option
+      console.log('🗑️ Clicking delete option...');
+      deleteOption.click();
+      await this.delay(500);
+      
+      // Look for confirmation dialog
+      const confirmButtonSelectors = [
+        'tp-yt-paper-button:has([aria-label*="削除"])',
+        'tp-yt-paper-button:has([aria-label*="Remove"])',
+        'button[aria-label*="削除"]',
+        'button[aria-label*="Remove"]',
+        '#confirm-button',
+        '.confirm-dialog button',
+        'ytd-button-renderer[is-paper-button] button'
+      ];
+      
+      let confirmButton = null;
+      for (const selector of confirmButtonSelectors) {
+        confirmButton = document.querySelector(selector);
+        if (confirmButton) {
+          const text = confirmButton.textContent || confirmButton.innerText || '';
+          const ariaLabel = confirmButton.getAttribute('aria-label') || '';
+          
+          if (text.includes('削除') || text.includes('Remove') ||
+              ariaLabel.includes('削除') || ariaLabel.includes('Remove')) {
+            console.log(`✅ Found confirm button with selector: ${selector}`);
+            break;
+          } else {
+            confirmButton = null;
+          }
+        }
+      }
+      
+      if (confirmButton) {
+        console.log('✅ Clicking confirmation button...');
+        confirmButton.click();
+        await this.delay(1000);
+        
+        console.log('✅ Video deletion completed');
+        return true;
+      } else {
+        console.log('⚠️ No confirmation dialog found - deletion may have completed');
+        return true;
+      }
+      
+    } catch (error) {
+      console.error('💥 Error during video deletion:', error);
+      return false;
+    }
+  }
+  
+  showProgressSection() {
+    const progressSection = document.getElementById('progress-section');
+    if (progressSection) {
+      progressSection.style.display = 'block';
+      console.log('📊 Progress section shown');
+    }
+  }
+  
+  hideProgressSection() {
+    const progressSection = document.getElementById('progress-section');
+    if (progressSection) {
+      progressSection.style.display = 'none';
+      console.log('📊 Progress section hidden');
+    }
+  }
+  
+  updateProgress() {
+    const progressText = document.getElementById('progress-text');
+    const progressFill = document.getElementById('progress-fill');
+    
+    if (progressText) {
+      progressText.textContent = `${this.deleteProgress} / ${this.totalToDelete}`;
+    }
+    
+    if (progressFill) {
+      const percentage = (this.deleteProgress / this.totalToDelete) * 100;
+      progressFill.style.width = `${percentage}%`;
+    }
+    
+    console.log(`📊 Progress updated: ${this.deleteProgress}/${this.totalToDelete} (${Math.round((this.deleteProgress / this.totalToDelete) * 100)}%)`);
+  }
+  
+  cancelDeletion() {
+    console.log('⏹️ Cancelling deletion...');
+    this.isDeleting = false;
+    this.showNotification('⏹️ 削除をキャンセルしました');
+  }
+  
+  showNotification(message, duration = 3000) {
+    console.log(`📢 Notification: ${message}`);
+    
+    // Remove existing notification
+    const existingNotification = document.querySelector('.bulk-delete-notification');
+    if (existingNotification) {
+      existingNotification.remove();
+    }
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'bulk-delete-notification';
+    notification.textContent = message;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Auto remove after duration
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, duration);
+  }
+  
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
+  // Debug methods
+  async debugDeleteProcess() {
+    console.log('');
+    console.log('🔎 ========================================');
+    console.log('🔎 === DEBUG DELETE PROCESS ===');
+    console.log('🔎 ========================================');
+    console.log('');
+    
+    const videos = this.getVideoElements();
+    console.log(`🎯 Found ${videos.length} video elements`);
+    
+    if (videos.length === 0) {
+      console.log('❌ No videos found for debugging');
       return;
     }
     
-    // Step 2: Simulate menu click (but don't actually click)
-    console.log('\n👆 Step 2: Would click menu button (simulated)');
-    console.log('   - This would open the context menu');
+    const firstVideo = videos[0];
+    console.log('🔍 Analyzing first video element...');
+    console.log('📋 Video HTML structure:');
+    console.log(firstVideo.outerHTML.substring(0, 1000) + '...');
     
-    // Step 3: Check what menu items might be available
-    console.log('\n🔍 Step 3: Looking for existing menu items...');
-    const existingMenuItems = document.querySelectorAll('ytd-menu-service-item-renderer, [role="menuitem"]');
+    // Test menu button finding
+    const menuButtonSelectors = [
+      'button[aria-label*="操作メニュー"]',
+      'button[aria-label*="Action menu"]',
+      'button[aria-label*="その他の操作"]',
+      'button[aria-label*="More actions"]',
+      'ytd-menu-renderer button',
+      '#button[aria-label]',
+      'yt-icon-button[aria-label*="メニュー"]',
+      'yt-icon-button[aria-label*="menu"]',
+      '.dropdown-trigger',
+      '[role="button"][aria-haspopup="true"]'
+    ];
     
-    if (existingMenuItems.length > 0) {
-      console.log(`✅ Found ${existingMenuItems.length} menu items:`);
-      existingMenuItems.forEach((item, index) => {
-        const text = item.textContent.trim();
-        console.log(`   ${index + 1}. "${text}"`);
-        if (text.includes('削除') || text.includes('remove') || text.includes('リスト')) {
-          console.log('      ⭐ This might be the delete option!');
-        }
+    console.log('🔍 Testing menu button selectors...');
+    menuButtonSelectors.forEach((selector, index) => {
+      const button = firstVideo.querySelector(selector);
+      if (button) {
+        console.log(`  ✅ ${index + 1}. ${selector} - FOUND`);
+        console.log(`      aria-label: "${button.getAttribute('aria-label') || 'none'}"`);
+        console.log(`      text: "${(button.textContent || '').trim()}"`);
+      } else {
+        console.log(`  ❌ ${index + 1}. ${selector} - NOT FOUND`);
+      }
+    });
+    
+    // Test clicking menu if available
+    const menuButton = firstVideo.querySelector('button[aria-label*="操作メニュー"], button[aria-label*="Action menu"], ytd-menu-renderer button');
+    if (menuButton) {
+      console.log('🎯 Testing menu click...');
+      menuButton.click();
+      await this.delay(1000);
+      
+      console.log('🔍 Menu options after click:');
+      const menuItems = document.querySelectorAll('ytd-menu-service-item-renderer, tp-yt-paper-item, [role="menuitem"]');
+      menuItems.forEach((item, index) => {
+        const text = (item.textContent || item.innerText || '').trim();
+        const ariaLabel = item.getAttribute('aria-label') || '';
+        console.log(`  ${index + 1}. "${text}" (aria-label: "${ariaLabel}")`);
       });
-    } else {
-      console.log('ℹ️ No menu items currently visible (menu needs to be opened first)');
+      
+      // Close menu
+      document.body.click();
+      await this.delay(300);
     }
     
-    console.log('');
-    console.log('⚙️ Simple test completed. This was analysis only - no actual deletion attempted.');
-    console.log('⚙️ ========================================');
+    console.log('🔎 === DEBUG ANALYSIS COMPLETE ===');
+  }
+  
+  async testActualDelete() {
+    console.log('🧪 === TESTING ACTUAL DELETE ===');
+    
+    const videos = this.getVideoElements();
+    if (videos.length === 0) {
+      console.log('❌ No videos found for testing');
+      return;
+    }
+    
+    const testVideo = videos[0];
+    console.log('🎯 Testing deletion on first video');
+    
+    const success = await this.deleteVideo(testVideo);
+    console.log(`📊 Delete test result: ${success ? 'SUCCESS' : 'FAILED'}`);
+  }
+  
+  async simpleDeleteTest() {
+    console.log('🧪 === SIMPLE DELETE TEST ===');
+    
+    // Just try to find and click elements step by step
+    const videos = this.getVideoElements();
+    if (videos.length === 0) {
+      console.log('❌ No videos found');
+      return;
+    }
+    
+    const video = videos[0];
+    console.log('🎯 Testing on first video');
+    
+    // Find any button in the video
+    const buttons = video.querySelectorAll('button');
+    console.log(`🔍 Found ${buttons.length} buttons in video`);
+    
+    buttons.forEach((button, index) => {
+      const ariaLabel = button.getAttribute('aria-label') || '';
+      const text = (button.textContent || '').trim();
+      console.log(`  ${index + 1}. aria-label: "${ariaLabel}", text: "${text}"`);
+    });
+    
+    // Click the first button that looks like a menu
+    const menuButton = Array.from(buttons).find(button => {
+      const ariaLabel = button.getAttribute('aria-label') || '';
+      return ariaLabel.includes('メニュー') || ariaLabel.includes('menu') || ariaLabel.includes('操作');
+    });
+    
+    if (menuButton) {
+      console.log('🎯 Found potential menu button, clicking...');
+      menuButton.click();
+      await this.delay(1000);
+      
+      // Check what appeared
+      const popups = document.querySelectorAll('ytd-menu-popup-renderer, tp-yt-iron-dropdown, [role="menu"]');
+      console.log(`📋 Found ${popups.length} potential menu popups`);
+      
+      popups.forEach((popup, index) => {
+        console.log(`  Popup ${index + 1}:`, popup.innerHTML.substring(0, 200) + '...');
+      });
+      
+      // Close by clicking body
+      document.body.click();
+      await this.delay(300);
+    }
+    
+    console.log('🔎 === DEBUG ANALYSIS COMPLETE ===');
+  }
+  
+  // ===================================
+  // DRAG FUNCTIONALITY
+  // ===================================
+  
+  setupDragFunctionality() {
+    console.log('🖱️ Setting up drag functionality...');
+    
+    if (!this.ui) {
+      console.log('⚠️ No UI element found for drag setup');
+      return;
+    }
+    
+    // Initialize drag state
+    this.dragState = {
+      isDragging: false,
+      dragOffset: { x: 0, y: 0 },
+      originalPosition: null
+    };
+    
+    // Find the drag handle (header element)
+    const dragHandle = this.ui.querySelector('.bulk-delete-header');
+    if (!dragHandle) {
+      console.log('⚠️ No drag handle found');
+      return;
+    }
+    
+    // Add drag handle styling
+    dragHandle.style.cursor = 'move';
+    dragHandle.style.userSelect = 'none';
+    dragHandle.title = 'ドラッグして移動';
+    
+    // Mouse down event
+    this.dragMouseDownHandler = (e) => {
+      // Only handle left mouse button and prevent if clicking on buttons
+      if (e.button !== 0 || e.target.tagName === 'BUTTON') {
+        return;
+      }
+      
+      console.log('🖱️ Drag started');
+      this.dragState.isDragging = true;
+      
+      // Get UI position
+      const rect = this.ui.getBoundingClientRect();
+      this.dragState.dragOffset = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+      
+      // Store original position for restoration if needed
+      this.dragState.originalPosition = {
+        top: this.ui.style.top || '80px',
+        right: this.ui.style.right || '20px',
+        left: this.ui.style.left || 'auto',
+        bottom: this.ui.style.bottom || 'auto'
+      };
+      
+      // Add dragging class for visual feedback
+      this.ui.classList.add('dragging');
+      
+      // Prevent text selection
+      e.preventDefault();
+      
+      // Add temporary event listeners
+      document.addEventListener('mousemove', this.dragMouseMoveHandler);
+      document.addEventListener('mouseup', this.dragMouseUpHandler);
+    };
+    
+    // Mouse move event
+    this.dragMouseMoveHandler = (e) => {
+      if (!this.dragState.isDragging) return;
+      
+      e.preventDefault();
+      
+      // Calculate new position
+      let newX = e.clientX - this.dragState.dragOffset.x;
+      let newY = e.clientY - this.dragState.dragOffset.y;
+      
+      // Get viewport bounds
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const uiRect = this.ui.getBoundingClientRect();
+      
+      // Constrain to viewport bounds
+      newX = Math.max(0, Math.min(newX, viewportWidth - uiRect.width));
+      newY = Math.max(0, Math.min(newY, viewportHeight - uiRect.height));
+      
+      // Update position - switch from right/top positioning to left/top
+      this.ui.style.left = newX + 'px';
+      this.ui.style.top = newY + 'px';
+      this.ui.style.right = 'auto';
+      this.ui.style.bottom = 'auto';
+    };
+    
+    // Mouse up event
+    this.dragMouseUpHandler = (e) => {
+      if (!this.dragState.isDragging) return;
+      
+      console.log('🖱️ Drag ended');
+      this.dragState.isDragging = false;
+      
+      // Remove dragging class
+      this.ui.classList.remove('dragging');
+      
+      // Remove temporary event listeners
+      document.removeEventListener('mousemove', this.dragMouseMoveHandler);
+      document.removeEventListener('mouseup', this.dragMouseUpHandler);
+      
+      // Save position to localStorage for persistence
+      this.saveUIPosition();
+    };
+    
+    // Add mouse down listener to drag handle
+    dragHandle.addEventListener('mousedown', this.dragMouseDownHandler);
+    
+    // Restore saved position if available
+    this.restoreUIPosition();
+    
+    console.log('✅ Drag functionality setup complete');
+  }
+  
+  saveUIPosition() {
+    try {
+      const position = {
+        left: this.ui.style.left,
+        top: this.ui.style.top,
+        right: this.ui.style.right,
+        bottom: this.ui.style.bottom
+      };
+      localStorage.setItem('bulkDeleteUI_position', JSON.stringify(position));
+      console.log('💾 UI position saved:', position);
+    } catch (error) {
+      console.log('⚠️ Could not save UI position:', error);
+    }
+  }
+  
+  restoreUIPosition() {
+    try {
+      const saved = localStorage.getItem('bulkDeleteUI_position');
+      if (saved) {
+        const position = JSON.parse(saved);
+        console.log('📍 Restoring UI position:', position);
+        
+        // Apply saved position
+        if (position.left && position.left !== 'auto') {
+          this.ui.style.left = position.left;
+          this.ui.style.right = 'auto';
+        }
+        if (position.top && position.top !== 'auto') {
+          this.ui.style.top = position.top;
+          this.ui.style.bottom = 'auto';
+        }
+      }
+    } catch (error) {
+      console.log('⚠️ Could not restore UI position:', error);
+    }
+  }
+  
+  resetUIPosition() {
+    // Reset to default position
+    this.ui.style.top = '80px';
+    this.ui.style.right = '20px';
+    this.ui.style.left = 'auto';
+    this.ui.style.bottom = 'auto';
+    
+    // Clear saved position
+    try {
+      localStorage.removeItem('bulkDeleteUI_position');
+      console.log('🔄 UI position reset to default');
+    } catch (error) {
+      console.log('⚠️ Could not clear saved position:', error);
+    }
   }
 }
 
 // Initialize the extension when the page loads
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
+console.log('');
+console.log('🌟 ========================================');
+console.log('🌟 === YOUTUBE BULK DELETE SCRIPT LOADED ===');
+console.log('🌟 ========================================');
+console.log('');
+
+// Make extension available globally for debugging
+window.bulkDeleteExtension = null;
+
+// Check if we're on the Watch Later page
+const isWatchLaterPage = window.location.href.includes('youtube.com/playlist?list=WL');
+console.log(`🔍 Watch Later page check: ${isWatchLaterPage}`);
+
+if (isWatchLaterPage) {
+  // Wait for DOM to be ready
+  if (document.readyState === 'loading') {
+    console.log('⏳ Document still loading, waiting for DOMContentLoaded...');
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('✅ DOMContentLoaded fired, initializing extension...');
+      window.bulkDeleteExtension = new WatchLaterBulkDelete();
+    });
+  } else {
+    console.log('✅ Document already loaded, initializing extension immediately...');
     window.bulkDeleteExtension = new WatchLaterBulkDelete();
-  });
+  }
+  
+  // Also initialize on navigation changes (for SPA behavior)
+  let lastUrl = location.href;
+  new MutationObserver(() => {
+    const url = location.href;
+    if (url !== lastUrl) {
+      lastUrl = url;
+      console.log('🔄 URL changed, checking if still on Watch Later page...');
+      
+      if (url.includes('youtube.com/playlist?list=WL')) {
+        console.log('✅ Still on Watch Later page, reinitializing...');
+        setTimeout(() => {
+          if (window.bulkDeleteExtension) {
+            window.bulkDeleteExtension.setupEventListeners();
+          } else {
+            window.bulkDeleteExtension = new WatchLaterBulkDelete();
+          }
+        }, 1000);
+      } else {
+        console.log('❌ Navigated away from Watch Later page');
+      }
+    }
+  }).observe(document, { subtree: true, childList: true });
 } else {
-  window.bulkDeleteExtension = new WatchLaterBulkDelete();
+  console.log('ℹ️ Not on Watch Later page, extension will not initialize');
 }
 
-// Export for debugging
+// Debug functions for console access
 window.debugBulkDelete = {
   testSelectAll: () => {
-    console.log('🧪 === DEBUG: TESTING SELECT ALL ===');
+    console.log('🧪 === TESTING SELECT ALL ===');
     if (window.bulkDeleteExtension) {
       window.bulkDeleteExtension.selectAllVideos();
     } else {
@@ -1937,7 +1709,7 @@ window.debugBulkDelete = {
   },
   
   testToggleMode: () => {
-    console.log('🧪 === DEBUG: TESTING TOGGLE MODE ===');
+    console.log('🧪 === TESTING TOGGLE MODE ===');
     if (window.bulkDeleteExtension) {
       window.bulkDeleteExtension.toggleBulkDeleteMode();
     } else {
