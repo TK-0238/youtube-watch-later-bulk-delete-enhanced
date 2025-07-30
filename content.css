@@ -508,3 +508,106 @@ ytd-playlist-video-renderer .checkbox-container {
     height: 16px;
   }
 }
+
+/* ===================================
+   DRAG FUNCTIONALITY STYLES
+   =================================== */
+
+/* Drag handle styling */
+.bulk-delete-header {
+  position: relative;
+}
+
+.bulk-delete-header:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px 8px 0 0;
+}
+
+/* Dragging state */
+.bulk-delete-container.dragging {
+  opacity: 0.9;
+  transform: rotate(2deg);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  z-index: 99999;
+  transition: none; /* Disable transitions during drag */
+}
+
+.bulk-delete-container.dragging .bulk-delete-header {
+  background: rgba(204, 0, 0, 0.1);
+  border-radius: 8px 8px 0 0;
+}
+
+/* Drag handle icon */
+.bulk-delete-header::after {
+  content: '⋮⋮';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(204, 0, 0, 0.4);
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: -2px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.bulk-delete-header:hover::after {
+  opacity: 1;
+}
+
+.bulk-delete-container.dragging .bulk-delete-header::after {
+  opacity: 1;
+  color: rgba(204, 0, 0, 0.8);
+}
+
+/* Smooth position transitions when not dragging */
+.bulk-delete-container:not(.dragging) {
+  transition: left 0.3s ease, top 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Dark mode support for drag functionality */
+html[dark] .bulk-delete-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+html[dark] .bulk-delete-container.dragging .bulk-delete-header {
+  background: rgba(66, 133, 244, 0.1);
+}
+
+html[dark] .bulk-delete-header::after {
+  color: rgba(66, 133, 244, 0.4);
+}
+
+html[dark] .bulk-delete-header:hover::after {
+  opacity: 1;
+}
+
+html[dark] .bulk-delete-container.dragging .bulk-delete-header::after {
+  color: rgba(66, 133, 244, 0.8);
+}
+
+/* Improve drag handle visibility on small screens */
+@media (max-width: 768px) {
+  .bulk-delete-header::after {
+    right: 4px;
+    font-size: 14px;
+  }
+  
+  .bulk-delete-container.dragging {
+    transform: rotate(1deg);
+  }
+}
+
+/* Cursor styles */
+.bulk-delete-header {
+  cursor: move;
+  cursor: -webkit-grab;
+  cursor: grab;
+}
+
+.bulk-delete-container.dragging .bulk-delete-header {
+  cursor: -webkit-grabbing;
+  cursor: grabbing;
+}
